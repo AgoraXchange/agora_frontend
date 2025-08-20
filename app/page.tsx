@@ -20,9 +20,8 @@ import {
 } from "@coinbase/onchainkit/wallet";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { Button } from "./components/DemoComponents";
-import { Icon } from "./components/DemoComponents";
 import { Home } from "./components/DemoComponents";
-import { Features } from "./components/DemoComponents";
+import { CreateAgreement } from "./components/CreateAgreement";
 
 export default function App() {
   const { setFrameReady, isFrameReady, context } = useMiniKit();
@@ -51,7 +50,6 @@ export default function App() {
           size="sm"
           onClick={handleAddFrame}
           className="text-[var(--app-accent)] p-4"
-          icon={<Icon name="plus" size="sm" />}
         >
           Save Frame
         </Button>
@@ -61,8 +59,7 @@ export default function App() {
     if (frameAdded) {
       return (
         <div className="flex items-center space-x-1 text-sm font-medium text-[#0052FF] animate-fade-out">
-          <Icon name="check" size="sm" className="text-[#0052FF]" />
-          <span>Saved</span>
+          <span>✓ Saved</span>
         </div>
       );
     }
@@ -97,7 +94,7 @@ export default function App() {
 
         <main className="flex-1">
           {activeTab === "home" && <Home setActiveTab={setActiveTab} />}
-          {activeTab === "features" && <Features setActiveTab={setActiveTab} />}
+          {activeTab === "create" && <CreateAgreement />}
         </main>
 
         <footer className="mt-2 pt-4 flex justify-center">
