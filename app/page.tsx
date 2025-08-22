@@ -22,6 +22,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { Button } from "./components/DemoComponents";
 import { Home } from "./components/DemoComponents";
 import { CreateAgreement } from "./components/CreateAgreement";
+import { AgreementList } from "./components/AgreementList";
 
 export default function App() {
   const { setFrameReady, isFrameReady, context } = useMiniKit();
@@ -93,7 +94,12 @@ export default function App() {
         </header>
 
         <main className="flex-1">
-          {activeTab === "home" && <Home setActiveTab={setActiveTab} />}
+          {activeTab === "home" && (
+            <div className="space-y-6">
+              <Home setActiveTab={setActiveTab} />
+              <AgreementList />
+            </div>
+          )}
           {activeTab === "create" && <CreateAgreement />}
         </main>
 
