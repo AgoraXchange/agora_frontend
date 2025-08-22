@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useReadContract, useReadContracts } from "wagmi";
 import { AGREEMENT_FACTORY_ADDRESS, AGREEMENT_FACTORY_ABI } from "@/lib/agreementFactoryABI";
 
@@ -144,6 +145,7 @@ function AgreementCard({ contract, onSelect }: AgreementCardProps) {
 }
 
 export function AgreementList() {
+  const router = useRouter();
   
   const { data: contractCounter } = useReadContract({
     address: AGREEMENT_FACTORY_ADDRESS,
@@ -204,8 +206,7 @@ export function AgreementList() {
     : [];
 
   const handleSelectAgreement = (id: number) => {
-    // Here you could navigate to a detail page or open a modal
-    console.log("Selected agreement:", id);
+    router.push(`/agreement/${id}`);
   };
 
   if (!contractCounter || Number(contractCounter) === 0) {
