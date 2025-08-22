@@ -61,10 +61,10 @@ function Card({ title, children, className = "" }: CardProps) {
 export function CreateAgreement() {
   const { address, isConnected } = useAccount();
   const [topic, setTopic] = useState("El Clasico Match");
+  const [description, setDescription] = useState("Real Madrid vs Barcelona football match");
   const [partyA, setPartyA] = useState("Real Madrid");
   const [partyB, setPartyB] = useState("Barcelona");
   const [duration, setDuration] = useState("60");
-  const [rewardPercentage, setRewardPercentage] = useState("10");
   const [minBet, setMinBet] = useState("0.001");
   const [maxBet, setMaxBet] = useState("1");
 
@@ -99,10 +99,10 @@ export function CreateAgreement() {
         functionName: "createContract",
         args: [
           topic,
+          description,
           partyA,
           partyB,
           BigInt(duration),
-          BigInt(rewardPercentage),
           parseEther(minBet),
           parseEther(maxBet)
         ],
@@ -110,7 +110,7 @@ export function CreateAgreement() {
     } catch (err) {
       console.error("Error creating contract:", err);
     }
-  }, [isConnected, address, writeContract, topic, partyA, partyB, duration, rewardPercentage, minBet, maxBet]);
+  }, [isConnected, address, writeContract, topic, description, partyA, partyB, duration, minBet, maxBet]);
 
   return (
     <div className="space-y-6">
@@ -145,6 +145,20 @@ export function CreateAgreement() {
                   onChange={(e) => setTopic(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="e.g. El Clasico Match, Election Winner, Stock Price Prediction"
+                />
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Description
+                  <span className="text-gray-500 text-xs ml-1">Provide more details about this bet</span>
+                </label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g. Real Madrid vs Barcelona football match on December 23, 2024"
+                  rows={3}
                 />
               </div>
 
@@ -194,30 +208,19 @@ export function CreateAgreement() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Duration (minutes)</label>
-                  <input
-                    type="number"
-                    value={duration}
-                    onChange={(e) => setDuration(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="60"
-                    min="1"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Reward Percentage (%)</label>
-                  <input
-                    type="number"
-                    value={rewardPercentage}
-                    onChange={(e) => setRewardPercentage(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="10"
-                    min="0"
-                    max="100"
-                  />
-                </div>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Duration (minutes)</label>
+                <input
+                  type="number"
+                  value={duration}
+                  onChange={(e) => setDuration(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="60"
+                  min="1"
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                  Agreement creator reward is fixed at 1% of the losing pool (after 5% platform fee)
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -314,25 +317,53 @@ export function CreateAgreement() {
             <div className="bg-gray-50 rounded-lg p-3">
               <p className="text-sm text-gray-600">Total Contracts</p>
               <p className="text-xl font-semibold text-gray-800">
-                {(platformStats as unknown as { totalContracts: bigint }).totalContracts.toString()}
+                {(() => {
+                  try {
+                    const stats = platformStats as any;
+                    return stats?.totalContracts?.toString() || "0";
+                  } catch {
+                    return "0";
+                  }
+                })()}
               </p>
             </div>
             <div className="bg-gray-50 rounded-lg p-3">
               <p className="text-sm text-gray-600">Total Bets</p>
               <p className="text-xl font-semibold text-gray-800">
-                {(platformStats as unknown as { totalBets: bigint }).totalBets.toString()}
+                {(() => {
+                  try {
+                    const stats = platformStats as any;
+                    return stats?.totalBets?.toString() || "0";
+                  } catch {
+                    return "0";
+                  }
+                })()}
               </p>
             </div>
             <div className="bg-gray-50 rounded-lg p-3">
               <p className="text-sm text-gray-600">Total Volume</p>
               <p className="text-xl font-semibold text-gray-800">
-                {(Number((platformStats as unknown as { totalVolume: bigint }).totalVolume) / 1e18).toFixed(4)} ETH
+                {(() => {
+                  try {
+                    const stats = platformStats as any;
+                    return stats?.totalVolume ? (Number(stats.totalVolume) / 1e18).toFixed(4) : "0.0000";
+                  } catch {
+                    return "0.0000";
+                  }
+                })()} ETH
               </p>
             </div>
             <div className="bg-gray-50 rounded-lg p-3">
               <p className="text-sm text-gray-600">Fees Collected</p>
               <p className="text-xl font-semibold text-gray-800">
-                {(Number((platformStats as unknown as { totalFeesCollected: bigint }).totalFeesCollected) / 1e18).toFixed(4)} ETH
+                {(() => {
+                  try {
+                    const stats = platformStats as any;
+                    return stats?.totalFeesCollected ? (Number(stats.totalFeesCollected) / 1e18).toFixed(4) : "0.0000";
+                  } catch {
+                    return "0.0000";
+                  }
+                })()} ETH
               </p>
             </div>
           </div>
