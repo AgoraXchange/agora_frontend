@@ -3,6 +3,7 @@
 import { type ReactNode } from "react";
 import { baseSepolia } from "wagmi/chains";
 import { MiniKitProvider } from "@coinbase/onchainkit/minikit";
+import { http } from "viem";
 
 export function Providers(props: { children: ReactNode }) {
   return (
@@ -16,7 +17,12 @@ export function Providers(props: { children: ReactNode }) {
           name: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME,
           logo: process.env.NEXT_PUBLIC_ICON_URL,
         },
-      }}
+        wagmi: {
+          transports: {
+            [baseSepolia.id]: http("https://sepolia.base.org"),
+          },
+        },
+      } as any}
     >
       {props.children}
     </MiniKitProvider>
