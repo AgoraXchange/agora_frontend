@@ -1,4 +1,4 @@
-export const AGREEMENT_FACTORY_ADDRESS = "0x6b28DB78F2Fd42Ed327D1CC18F53068EB040A6c4";
+export const AGREEMENT_FACTORY_ADDRESS = "0x08A1072f0b9d93AbAc02Feb285c976cA007CD822";
 export const AGREEMENT_FACTORY_ABI = [
   {
     "type": "constructor",
@@ -26,7 +26,20 @@ export const AGREEMENT_FACTORY_ABI = [
   },
   {
     "type": "function",
-    "name": "MAX_BETS_PER_PAGE",
+  "name": "MAX_BETS_PER_PAGE",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "PARTY_REWARD_PERCENTAGE",
     "inputs": [],
     "outputs": [
       {
@@ -46,6 +59,43 @@ export const AGREEMENT_FACTORY_ABI = [
         "name": "",
         "type": "uint256",
         "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "addComment",
+    "inputs": [
+      {
+        "name": "_contractId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "_content",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "canBet",
+    "inputs": [
+      {
+        "name": "_contractId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
       }
     ],
     "stateMutability": "view"
@@ -101,6 +151,35 @@ export const AGREEMENT_FACTORY_ABI = [
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "commentLikes",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -215,6 +294,45 @@ export const AGREEMENT_FACTORY_ABI = [
   },
   {
     "type": "function",
+    "name": "contractComments",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "commenter",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "content",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "timestamp",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "likes",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "contractCounter",
     "inputs": [],
     "outputs": [
@@ -244,6 +362,11 @@ export const AGREEMENT_FACTORY_ABI = [
       },
       {
         "name": "topic",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "description",
         "type": "string",
         "internalType": "string"
       },
@@ -306,6 +429,11 @@ export const AGREEMENT_FACTORY_ABI = [
         "name": "totalBettors",
         "type": "uint256",
         "internalType": "uint256"
+      },
+      {
+        "name": "totalComments",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -316,6 +444,11 @@ export const AGREEMENT_FACTORY_ABI = [
     "inputs": [
       {
         "name": "_topic",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "_description",
         "type": "string",
         "internalType": "string"
       },
@@ -331,11 +464,6 @@ export const AGREEMENT_FACTORY_ABI = [
       },
       {
         "name": "_bettingDurationInMinutes",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "_partyRewardPercentage",
         "type": "uint256",
         "internalType": "uint256"
       },
@@ -470,6 +598,62 @@ export const AGREEMENT_FACTORY_ABI = [
   },
   {
     "type": "function",
+    "name": "getComments",
+    "inputs": [
+      {
+        "name": "_contractId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "_offset",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "_limit",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "comments",
+        "type": "tuple[]",
+        "internalType": "struct ABBetting.Comment[]",
+        "components": [
+          {
+            "name": "commenter",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "content",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "timestamp",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "likes",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      },
+      {
+        "name": "totalComments",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "getContract",
     "inputs": [
       {
@@ -491,6 +675,11 @@ export const AGREEMENT_FACTORY_ABI = [
           },
           {
             "name": "topic",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "description",
             "type": "string",
             "internalType": "string"
           },
@@ -551,6 +740,11 @@ export const AGREEMENT_FACTORY_ABI = [
           },
           {
             "name": "totalBettors",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "totalComments",
             "type": "uint256",
             "internalType": "uint256"
           }
@@ -777,6 +971,48 @@ export const AGREEMENT_FACTORY_ABI = [
       }
     ],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "hasUserBet",
+    "inputs": [
+      {
+        "name": "_contractId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "_user",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "likeComment",
+    "inputs": [
+      {
+        "name": "_contractId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "_commentId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -1074,6 +1310,56 @@ export const AGREEMENT_FACTORY_ABI = [
   },
   {
     "type": "event",
+    "name": "CommentAdded",
+    "inputs": [
+      {
+        "name": "contractId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "commenter",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "content",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "CommentLiked",
+    "inputs": [
+      {
+        "name": "contractId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "commentId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "liker",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "ContractCancelled",
     "inputs": [
       {
@@ -1103,6 +1389,12 @@ export const AGREEMENT_FACTORY_ABI = [
       },
       {
         "name": "topic",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      },
+      {
+        "name": "description",
         "type": "string",
         "indexed": false,
         "internalType": "string"
