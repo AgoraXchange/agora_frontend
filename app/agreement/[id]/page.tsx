@@ -20,7 +20,7 @@ export default function AgreementDetailPage() {
   
   const { address, isConnected } = useAccount();
   const [selectedSide, setSelectedSide] = useState<1 | 2 | null>(null);
-  const [betAmount, setBetAmount] = useState("0.01");
+  const [betAmount, setBetAmount] = useState("0.0002");
   const [comment, setComment] = useState("");
   
   // Contract data
@@ -50,44 +50,72 @@ export default function AgreementDetailPage() {
       refetchContract();
       refetchComments();
       setSelectedSide(null);
-      setBetAmount("0.01");
+      setBetAmount("0.0002");
     }
   }, [isSuccess, refetchContract, refetchComments]);
 
-  // Generate random nonce automatically
-  const generateNonce = () => {
-    return Math.floor(Math.random() * 1000000);
-  };
 
-  // Calculate odds
-  const calculateOdds = (sidePool: bigint, otherPool: bigint) => {
+  // Calculate odds (considering platform fees)
+  const calculateOdds = (sidePool: bigint, loserPool: bigint) => {
     if (sidePool === BigInt(0)) return "∞";
-    const total = sidePool + otherPool;
-    if (total === BigInt(0)) return "1.0";
-    const odds = Number(total) / Number(sidePool);
-    return odds.toFixed(1);
+    if (loserPool === BigInt(0)) return "1.0";
+    
+    // Apply fees to loser pool
+    const platformFee = (loserPool * BigInt(5)) / BigInt(100);  // 5%
+    const poolAfterPlatformFee = loserPool - platformFee;
+    const creatorReward = (poolAfterPlatformFee * BigInt(1)) / BigInt(100);  // 1%
+    const finalPrizePool = poolAfterPlatformFee - creatorReward;
+    
+    // Calculate odds: (original bet + share of prize pool) / original bet
+    const odds = (Number(sidePool) + Number(finalPrizePool)) / Number(sidePool);
+    return odds.toFixed(2);
   };
 
-  // Handle betting
+  // Calculate personal expected return for a given bet amount
+  const calculatePersonalReturn = (betAmount: string, sidePool: bigint, loserPool: bigint) => {
+    if (!betAmount || sidePool === BigInt(0)) return { odds: "1.0", totalReturn: "0", winnings: "0" };
+    
+    const myBet = parseFloat(betAmount);
+    const mySidePool = Number(sidePool) / 1e18;  // Convert to ETH
+    const loserPoolEth = Number(loserPool) / 1e18;
+    
+    if (loserPoolEth === 0) return { odds: "1.0", totalReturn: betAmount, winnings: "0" };
+    
+    // Apply fees
+    const platformFee = loserPoolEth * 0.05;
+    const poolAfterPlatformFee = loserPoolEth - platformFee;
+    const creatorReward = poolAfterPlatformFee * 0.01;
+    const finalPrizePool = poolAfterPlatformFee - creatorReward;
+    
+    // Calculate my share and returns
+    const newSidePool = mySidePool + myBet;  // Pool after my bet
+    const myShare = myBet / newSidePool;
+    const myWinnings = finalPrizePool * myShare;
+    const totalReturn = myBet + myWinnings;
+    
+    return {
+      odds: (totalReturn / myBet).toFixed(2),
+      totalReturn: totalReturn.toFixed(4),
+      winnings: myWinnings.toFixed(4)
+    };
+  };
+
+  // Handle betting (using simple betting)
   const handleBet = async () => {
-    if (!selectedSide || !betAmount || !isConnected) return;
+    if (!selectedSide || !betAmount || !isConnected || !address) return;
     
     try {
       const amount = parseEther(betAmount);
-      const nonce = generateNonce(); // Auto-generate nonce
-      
-      // Generate commit hash (simplified - in production should be more secure)
-      const commitHash = `0x${Array.from(
-        new TextEncoder().encode(`${contractId}-${address}-${selectedSide}-${nonce}-${amount}`)
-      ).map(b => b.toString(16).padStart(2, '0')).join('')}`.slice(0, 66);
       
       writeContract({
         address: AGREEMENT_FACTORY_ADDRESS,
         abi: AGREEMENT_FACTORY_ABI,
-        functionName: "commitBet",
-        args: [BigInt(contractId), commitHash],
+        functionName: "simpleBet",
+        args: [BigInt(contractId), selectedSide],
         value: amount,
       });
+      
+      console.log(`Simple bet placed! Choice: ${selectedSide === 1 ? contract.partyA : contract.partyB}`);
     } catch (err) {
       console.error("Error placing bet:", err);
     }
@@ -124,6 +152,10 @@ export default function AgreementDetailPage() {
   
   const oddsA = calculateOdds(contract.totalPoolA, contract.totalPoolB);
   const oddsB = calculateOdds(contract.totalPoolB, contract.totalPoolA);
+  
+  // Calculate personal returns based on current bet amount
+  const personalReturnA = calculatePersonalReturn(betAmount, contract.totalPoolA, contract.totalPoolB);
+  const personalReturnB = calculatePersonalReturn(betAmount, contract.totalPoolB, contract.totalPoolA);
 
   return (
     <div className="min-h-screen bg-[#1C1D21]">
@@ -208,23 +240,35 @@ export default function AgreementDetailPage() {
             <div className="grid grid-cols-2 gap-3 mb-4">
               <button
                 onClick={() => setSelectedSide(1)}
-                className={`p-3 rounded-lg border-2 transition-all ${
+                className={`p-4 rounded-lg border-2 transition-all ${
                   selectedSide === 1 
                     ? 'border-green-500 bg-green-500/20 text-green-400' 
                     : 'border-gray-600 text-gray-400 hover:border-gray-500'
                 }`}
               >
-                Bet on {contract.partyA}
+                <div className="font-medium mb-1">Bet on {contract.partyA}</div>
+                <div className="text-sm opacity-80">
+                  {betAmount} ETH → {personalReturnA.totalReturn} ETH
+                </div>
+                <div className="text-xs opacity-60">
+                  ({personalReturnA.odds}x odds)
+                </div>
               </button>
               <button
                 onClick={() => setSelectedSide(2)}
-                className={`p-3 rounded-lg border-2 transition-all ${
+                className={`p-4 rounded-lg border-2 transition-all ${
                   selectedSide === 2 
                     ? 'border-red-500 bg-red-500/20 text-red-400' 
                     : 'border-gray-600 text-gray-400 hover:border-gray-500'
                 }`}
               >
-                Bet on {contract.partyB}
+                <div className="font-medium mb-1">Bet on {contract.partyB}</div>
+                <div className="text-sm opacity-80">
+                  {betAmount} ETH → {personalReturnB.totalReturn} ETH
+                </div>
+                <div className="text-xs opacity-60">
+                  ({personalReturnB.odds}x odds)
+                </div>
               </button>
             </div>
 
@@ -236,8 +280,8 @@ export default function AgreementDetailPage() {
                 value={betAmount}
                 onChange={(e) => setBetAmount(e.target.value)}
                 className="w-full bg-[#1C1D21] border border-gray-600 rounded-lg px-3 py-2 text-white"
-                placeholder="0.01"
-                step="0.001"
+                placeholder="0.0002"
+                step="0.0001"
                 min="0"
               />
             </div>
