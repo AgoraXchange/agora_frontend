@@ -12,7 +12,6 @@ interface AgreementContract {
   partyA: string;
   partyB: string;
   bettingEndTime: bigint;
-  revealEndTime: bigint;
   status: number;
   winner: number;
   totalPoolA: bigint;
@@ -188,7 +187,6 @@ export function AgreementList() {
               partyA: data.partyA || '',
               partyB: data.partyB || '',
               bettingEndTime: data.bettingEndTime || BigInt(0),
-              revealEndTime: data.revealEndTime || BigInt(0),
               status: data.status || 0,
               winner: data.winner || 0,
               totalPoolA: data.totalPoolA || BigInt(0),
