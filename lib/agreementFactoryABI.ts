@@ -1,4 +1,5 @@
-export const AGREEMENT_FACTORY_ADDRESS = "0x08A1072f0b9d93AbAc02Feb285c976cA007CD822";
+export const AGREEMENT_FACTORY_ADDRESS = "0x22bA67768b3275b020539A068cA2E66f26Ce8607" as const;
+
 export const AGREEMENT_FACTORY_ABI = [
   {
     "type": "constructor",
@@ -13,20 +14,7 @@ export const AGREEMENT_FACTORY_ABI = [
   },
   {
     "type": "function",
-    "name": "CANCELLATION_DEADLINE",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-  "name": "MAX_BETS_PER_PAGE",
+    "name": "MAX_BETS_PER_PAGE",
     "inputs": [],
     "outputs": [
       {
@@ -40,19 +28,6 @@ export const AGREEMENT_FACTORY_ABI = [
   {
     "type": "function",
     "name": "PARTY_REWARD_PERCENTAGE",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "REVEAL_DURATION",
     "inputs": [],
     "outputs": [
       {
@@ -99,19 +74,6 @@ export const AGREEMENT_FACTORY_ABI = [
       }
     ],
     "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "cancelBet",
-    "inputs": [
-      {
-        "name": "_contractId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -183,68 +145,6 @@ export const AGREEMENT_FACTORY_ABI = [
   },
   {
     "type": "function",
-    "name": "commitBet",
-    "inputs": [
-      {
-        "name": "_contractId",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "_commitHash",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "payable"
-  },
-  {
-    "type": "function",
-    "name": "commitments",
-    "inputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "commitHash",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "amount",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "timestamp",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "revealed",
-        "type": "bool",
-        "internalType": "bool"
-      },
-      {
-        "name": "cancelled",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "contractBets",
     "inputs": [
       {
@@ -276,11 +176,6 @@ export const AGREEMENT_FACTORY_ABI = [
       },
       {
         "name": "claimed",
-        "type": "bool",
-        "internalType": "bool"
-      },
-      {
-        "name": "revealed",
         "type": "bool",
         "internalType": "bool"
       },
@@ -382,11 +277,6 @@ export const AGREEMENT_FACTORY_ABI = [
       },
       {
         "name": "bettingEndTime",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "revealEndTime",
         "type": "uint256",
         "internalType": "uint256"
       },
@@ -559,45 +449,6 @@ export const AGREEMENT_FACTORY_ABI = [
   },
   {
     "type": "function",
-    "name": "generateCommitHash",
-    "inputs": [
-      {
-        "name": "_contractId",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "_bettor",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "_choice",
-        "type": "uint8",
-        "internalType": "enum ABBetting.Choice"
-      },
-      {
-        "name": "_nonce",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "_amount",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "stateMutability": "pure"
-  },
-  {
-    "type": "function",
     "name": "getComments",
     "inputs": [
       {
@@ -699,11 +550,6 @@ export const AGREEMENT_FACTORY_ABI = [
             "internalType": "uint256"
           },
           {
-            "name": "revealEndTime",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
             "name": "status",
             "type": "uint8",
             "internalType": "enum ABBetting.ContractStatus"
@@ -786,11 +632,6 @@ export const AGREEMENT_FACTORY_ABI = [
       },
       {
         "name": "bettingEndTime",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "revealEndTime",
         "type": "uint256",
         "internalType": "uint256"
       },
@@ -1103,44 +944,8 @@ export const AGREEMENT_FACTORY_ABI = [
   },
   {
     "type": "function",
-    "name": "refundUnrevealedBet",
-    "inputs": [
-      {
-        "name": "_contractId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "renounceOwnership",
     "inputs": [],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "revealBet",
-    "inputs": [
-      {
-        "name": "_contractId",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "_choice",
-        "type": "uint8",
-        "internalType": "enum ABBetting.Choice"
-      },
-      {
-        "name": "_nonce",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
     "outputs": [],
     "stateMutability": "nonpayable"
   },
@@ -1203,6 +1008,24 @@ export const AGREEMENT_FACTORY_ABI = [
   },
   {
     "type": "function",
+    "name": "simpleBet",
+    "inputs": [
+      {
+        "name": "_contractId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "_choice",
+        "type": "uint8",
+        "internalType": "enum ABBetting.Choice"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
     "name": "transferOwnership",
     "inputs": [
       {
@@ -1223,63 +1046,7 @@ export const AGREEMENT_FACTORY_ABI = [
   },
   {
     "type": "event",
-    "name": "BetCancelled",
-    "inputs": [
-      {
-        "name": "contractId",
-        "type": "uint256",
-        "indexed": true,
-        "internalType": "uint256"
-      },
-      {
-        "name": "bettor",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "amount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "BetCommitted",
-    "inputs": [
-      {
-        "name": "contractId",
-        "type": "uint256",
-        "indexed": true,
-        "internalType": "uint256"
-      },
-      {
-        "name": "bettor",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "commitHash",
-        "type": "bytes32",
-        "indexed": false,
-        "internalType": "bytes32"
-      },
-      {
-        "name": "amount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "BetRevealed",
+    "name": "BetPlaced",
     "inputs": [
       {
         "name": "contractId",
