@@ -1,11 +1,16 @@
-# MiniKit Template
+# Agora - The Onchain Colosseum
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-onchain --mini`](), configured with:
+A decentralized betting platform where the sharpest minds compete and winners take the treasure. Built on Base Sepolia with MiniKit and OnchainKit integration.
 
-- [MiniKit](https://docs.base.org/builderkits/minikit/overview)
-- [OnchainKit](https://www.base.org/builders/onchainkit)
-- [Tailwind CSS](https://tailwindcss.com)
-- [Next.js](https://nextjs.org/docs)
+## Tech Stack
+
+- [Next.js 15](https://nextjs.org) with App Router
+- [MiniKit](https://docs.base.org/builderkits/minikit/overview) for Farcaster Frame integration
+- [OnchainKit](https://www.base.org/builders/onchainkit) for Web3 components
+- [Wagmi v2](https://wagmi.sh) + [Viem](https://viem.sh) for blockchain interactions
+- [Base Account SDK](https://docs.base.org/base-account) for wallet integration
+- [Tailwind CSS](https://tailwindcss.com) for styling
+- [Upstash Redis](https://upstash.com) for notification storage
 
 ## Getting Started
 
@@ -79,13 +84,13 @@ npm run dev
 - Pixel font integration with Pixelify Sans
 - Dark/light mode support through OnchainKit
 
-### MiniKit Provider
-The app is wrapped with `MiniKitProvider` in `providers.tsx`, configured with:
-- OnchainKit integration
-- Access to Frames context
-- Sets up Wagmi Connectors
-- Sets up Frame SDK listeners
-- Applies Safe Area Insets
+### Wallet Configuration
+The app uses a custom Wagmi configuration in `providers.tsx` with:
+- **Coinbase Smart Wallet** integration (Smart Wallet only mode)
+- **Base Sepolia** testnet support
+- **Session persistence** - wallet connection maintained across page refreshes
+- **MiniKit Provider** wrapper for Farcaster Frame context
+- **Query Client** setup for data fetching with React Query
 
 ## Customization
 

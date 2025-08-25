@@ -21,6 +21,7 @@ Always run these commands after making changes:
 - **Framework**: Next.js 15.3 with App Router
 - **UI**: React 18 with TypeScript
 - **Blockchain**: Wagmi v2 + Viem for Web3 interactions (Base Sepolia chain)
+- **Wallet**: Coinbase Smart Wallet (via @base-org/account SDK)
 - **Frame SDK**: Farcaster MiniApp SDK for mini-app functionality
 - **Styling**: Tailwind CSS with custom theme variables
 - **State Management**: React Query (TanStack Query v5)
@@ -45,10 +46,18 @@ lib/
 
 ### Key Integration Points
 
+#### Wallet & Provider Configuration
+- **Wagmi v2 Setup**: Custom configuration in `app/providers.tsx` with Coinbase Smart Wallet
+- **Smart Wallet Only Mode**: Uses `preference: "smartWalletOnly"` for improved UX
+- **Session Persistence**: `reconnectOnMount={true}` maintains wallet connection across refreshes
+- **Provider Hierarchy**: WagmiProvider → QueryClientProvider → MiniKitProvider → App
+- **Base Sepolia Chain**: Configured for testnet with RPC endpoint `https://sepolia.base.org`
+
 #### MiniKit & OnchainKit
-- Application wrapped with `MiniKitProvider` in `app/providers.tsx`
-- Configured for Base Sepolia testnet with auto theme detection
+- Application wrapped with `MiniKitProvider` for Farcaster Frame context
+- OnchainKit components available for Web3 UI elements
 - Frame metadata automatically injected in `app/layout.tsx`
+- App branding: "Agora" displayed in wallet interactions instead of localhost
 
 #### Notification System
 - **Storage**: User notification details stored in Redis with key pattern `{project_name}:user:{fid}`
