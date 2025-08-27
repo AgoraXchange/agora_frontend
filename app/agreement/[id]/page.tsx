@@ -5,23 +5,25 @@ import { useState, useEffect } from "react";
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { parseEther } from "viem";
 import { AGREEMENT_FACTORY_ADDRESS, AGREEMENT_FACTORY_ABI } from "@/lib/agreementFactoryABI";
-
-interface Comment {
-  commenter: string;
-  content: string;
-  timestamp: bigint;
-  likes: bigint;
-}
+import { BettingOptions } from "@/components/BettingOptions";
+import { CountdownTimer } from "@/components/CountdownTimer";
+import { ResultSection } from "@/components/ResultSection";
+import { LiveDebateCard } from "@/components/LiveDebateCard";
+import { LiveDebateBottomSheet } from "@/components/LiveDebateBottomSheet";
+import { BetModal } from "@/components/BetModal";
+import type { Comment, Contract } from "@/types/contract";
 
 export default function AgreementDetailPage() {
   const params = useParams();
   const router = useRouter();
   const contractId = parseInt(params.id as string);
   
-  const { address, isConnected } = useAccount();
-  const [selectedSide, setSelectedSide] = useState<1 | 2 | null>(null);
-  const [betAmount, setBetAmount] = useState("0.0002");
+  const { isConnected } = useAccount();
   const [comment, setComment] = useState("");
+  const [showBetModal, setShowBetModal] = useState(false);
+  const [showLiveDebate, setShowLiveDebate] = useState(false);
+  const [selectedSide, setSelectedSide] = useState<1 | 2 | null>(null);
+  const [betAmount, setBetAmount] = useState("0.001");
   
   // Contract data
   const { data: contractData, refetch: refetchContract } = useReadContract({
@@ -42,67 +44,37 @@ export default function AgreementDetailPage() {
   const { writeContract, data: hash, isPending, error } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
-  const contract = contractData as any;
-  const comments = (commentsData as any)?.[0] || [];
+  const contract = contractData as Contract;
+  const comments = (commentsData as Comment[][])?.[0] || [];
 
   useEffect(() => {
     if (isSuccess) {
       refetchContract();
       refetchComments();
+      setShowBetModal(false);
       setSelectedSide(null);
-      setBetAmount("0.0002");
+      setBetAmount("0.001");
+      setComment("");
     }
   }, [isSuccess, refetchContract, refetchComments]);
 
-
-  // Calculate odds (considering platform fees)
+  // Calculate odds
   const calculateOdds = (sidePool: bigint, loserPool: bigint) => {
-    if (sidePool === BigInt(0)) return "∞";
+    if (sidePool === BigInt(0)) return "--";
     if (loserPool === BigInt(0)) return "1.0";
     
-    // Apply fees to loser pool
-    const platformFee = (loserPool * BigInt(5)) / BigInt(100);  // 5%
+    const platformFee = (loserPool * BigInt(5)) / BigInt(100);
     const poolAfterPlatformFee = loserPool - platformFee;
-    const creatorReward = (poolAfterPlatformFee * BigInt(1)) / BigInt(100);  // 1%
+    const creatorReward = (poolAfterPlatformFee * BigInt(1)) / BigInt(100);
     const finalPrizePool = poolAfterPlatformFee - creatorReward;
     
-    // Calculate odds: (original bet + share of prize pool) / original bet
     const odds = (Number(sidePool) + Number(finalPrizePool)) / Number(sidePool);
-    return odds.toFixed(2);
+    return odds.toFixed(1);
   };
 
-  // Calculate personal expected return for a given bet amount
-  const calculatePersonalReturn = (betAmount: string, sidePool: bigint, loserPool: bigint) => {
-    if (!betAmount || sidePool === BigInt(0)) return { odds: "1.0", totalReturn: "0", winnings: "0" };
-    
-    const myBet = parseFloat(betAmount);
-    const mySidePool = Number(sidePool) / 1e18;  // Convert to ETH
-    const loserPoolEth = Number(loserPool) / 1e18;
-    
-    if (loserPoolEth === 0) return { odds: "1.0", totalReturn: betAmount, winnings: "0" };
-    
-    // Apply fees
-    const platformFee = loserPoolEth * 0.05;
-    const poolAfterPlatformFee = loserPoolEth - platformFee;
-    const creatorReward = poolAfterPlatformFee * 0.01;
-    const finalPrizePool = poolAfterPlatformFee - creatorReward;
-    
-    // Calculate my share and returns
-    const newSidePool = mySidePool + myBet;  // Pool after my bet
-    const myShare = myBet / newSidePool;
-    const myWinnings = finalPrizePool * myShare;
-    const totalReturn = myBet + myWinnings;
-    
-    return {
-      odds: (totalReturn / myBet).toFixed(2),
-      totalReturn: totalReturn.toFixed(4),
-      winnings: myWinnings.toFixed(4)
-    };
-  };
-
-  // Handle betting (using simple betting)
+  // Handle betting
   const handleBet = async () => {
-    if (!selectedSide || !betAmount || !isConnected || !address) return;
+    if (!selectedSide || !betAmount || !isConnected) return;
     
     try {
       const amount = parseEther(betAmount);
@@ -114,8 +86,6 @@ export default function AgreementDetailPage() {
         args: [BigInt(contractId), selectedSide],
         value: amount,
       });
-      
-      console.log(`Simple bet placed! Choice: ${selectedSide === 1 ? contract.partyA : contract.partyB}`);
     } catch (err) {
       console.error("Error placing bet:", err);
     }
@@ -132,7 +102,6 @@ export default function AgreementDetailPage() {
         functionName: "addComment",
         args: [BigInt(contractId), comment.trim()],
       });
-      setComment("");
     } catch (err) {
       console.error("Error adding comment:", err);
     }
@@ -140,8 +109,8 @@ export default function AgreementDetailPage() {
 
   if (!contract) {
     return (
-      <div className="min-h-screen bg-[#1C1D21] flex items-center justify-center">
-        <div className="text-white">Loading...</div>
+      <div className="min-h-screen bg-gray-1000 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -152,230 +121,203 @@ export default function AgreementDetailPage() {
   
   const oddsA = calculateOdds(contract.totalPoolA, contract.totalPoolB);
   const oddsB = calculateOdds(contract.totalPoolB, contract.totalPoolA);
-  
-  // Calculate personal returns based on current bet amount
-  const personalReturnA = calculatePersonalReturn(betAmount, contract.totalPoolA, contract.totalPoolB);
-  const personalReturnB = calculatePersonalReturn(betAmount, contract.totalPoolB, contract.totalPoolA);
 
   return (
-    <div className="min-h-screen bg-[#1C1D21]">
+    <div className="min-h-screen bg-gray-1000">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-700">
-        <button 
-          onClick={() => router.back()}
-          className="text-gray-400 hover:text-white p-1"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <div className="text-gray-400 text-sm">
-          {new Date().toLocaleDateString()}
+      <header className="sticky top-0 z-50 bg-gray-1000 border-b border-gray-800">
+        <div className="max-w-4xl mx-auto px-4 h-14 sm:h-16 flex items-center justify-between">
+          <button 
+            onClick={() => router.back()}
+            className="text-white hover:text-primary transition-colors p-2"
+          >
+            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          
+          <div className="flex items-center gap-1.5">
+            <img src="/assets/icons/logo.svg" alt="Agora" className="w-[18px] h-[18px] sm:w-6 sm:h-6" />
+            <span className="text-white text-lg sm:text-xl font-bold">agora</span>
+          </div>
+          
+          <button className="p-2 rounded-lg hover:bg-gray-800 transition-colors">
+            <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+          </button>
         </div>
-      </div>
+      </header>
 
-      <div className="max-w-2xl mx-auto p-6">
-        {/* Title and Description */}
-        <h1 className="text-white text-2xl font-bold mb-4">{contract.topic}</h1>
-        <p className="text-gray-300 text-sm leading-relaxed mb-6">
+      <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8">
+        {/* Author and timestamp */}
+        <div className="flex items-center gap-2 mb-4 text-sm text-gray-100">
+          <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center">
+            <span className="text-xs text-gray-1000 font-bold">
+              {contract.creator.slice(2, 4).toUpperCase()}
+            </span>
+          </div>
+          <span>{contract.creator.slice(0, 6)}...{contract.creator.slice(-4)}</span>
+          <span className="text-gray-800">•</span>
+          <span>{new Date().toLocaleDateString()}</span>
+        </div>
+
+        {/* Title */}
+        <h1 className="text-white text-2xl sm:text-3xl lg:text-4xl font-bold mb-4">
+          {contract.topic}
+        </h1>
+
+        {/* Description */}
+        <p className="text-gray-100 text-base sm:text-lg leading-relaxed mb-8">
           {contract.description}
         </p>
 
         {/* Betting Options */}
-        <div className="space-y-4 mb-8">
-          {/* Option A */}
-          <div className="bg-[#2C2D33] rounded-lg p-4">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-white font-medium">{contract.partyA} ({poolAPercentage.toFixed(1)}%)</span>
-              <span className="text-white text-lg font-bold">Odds : {oddsA}x</span>
-            </div>
-            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-green-500 transition-all duration-300"
-                style={{ width: `${poolAPercentage}%` }}
-              />
-            </div>
-          </div>
+        <BettingOptions 
+          partyA={contract.partyA}
+          partyB={contract.partyB}
+          poolAPercentage={poolAPercentage}
+          poolBPercentage={poolBPercentage}
+          oddsA={oddsA}
+          oddsB={oddsB}
+          status={contract.status}
+          winner={contract.winner}
+        />
 
-          {/* Option B */}
-          <div className="bg-[#2C2D33] rounded-lg p-4">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-white font-medium">{contract.partyB} ({poolBPercentage.toFixed(1)}%)</span>
-              <span className="text-white text-lg font-bold">Odds : {oddsB}x</span>
-            </div>
-            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-red-500 transition-all duration-300"
-                style={{ width: `${poolBPercentage}%` }}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Debate Summary Section */}
-        <div className="bg-[#2C2D33] rounded-lg p-4 mb-8">
-          <h3 className="text-white font-medium mb-4">Debate Summary</h3>
-          <div className="space-y-3">
-            <div className="bg-green-900/20 border-l-4 border-green-500 p-3 rounded">
-              <h4 className="text-green-400 font-medium text-sm">Viewpoint 1</h4>
-              <p className="text-gray-300 text-sm mt-1">
-                Support for {contract.partyA} - Based on recent comments and betting patterns.
-              </p>
-            </div>
-            <div className="bg-red-900/20 border-l-4 border-red-500 p-3 rounded">
-              <h4 className="text-red-400 font-medium text-sm">Viewpoint 2</h4>
-              <p className="text-gray-300 text-sm mt-1">
-                Support for {contract.partyB} - Counter-arguments and alternative perspectives.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Betting Interface */}
-        {isConnected && contract.status === 0 && (
-          <div className="bg-[#2C2D33] rounded-lg p-4 mb-8">
-            <h3 className="text-white font-medium mb-4">Place Your Bet</h3>
-            
-            {/* Side Selection */}
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <button
-                onClick={() => setSelectedSide(1)}
-                className={`p-4 rounded-lg border-2 transition-all ${
-                  selectedSide === 1 
-                    ? 'border-green-500 bg-green-500/20 text-green-400' 
-                    : 'border-gray-600 text-gray-400 hover:border-gray-500'
-                }`}
-              >
-                <div className="font-medium mb-1">Bet on {contract.partyA}</div>
-                <div className="text-sm opacity-80">
-                  {betAmount} ETH → {personalReturnA.totalReturn} ETH
-                </div>
-                <div className="text-xs opacity-60">
-                  ({personalReturnA.odds}x odds)
-                </div>
-              </button>
-              <button
-                onClick={() => setSelectedSide(2)}
-                className={`p-4 rounded-lg border-2 transition-all ${
-                  selectedSide === 2 
-                    ? 'border-red-500 bg-red-500/20 text-red-400' 
-                    : 'border-gray-600 text-gray-400 hover:border-gray-500'
-                }`}
-              >
-                <div className="font-medium mb-1">Bet on {contract.partyB}</div>
-                <div className="text-sm opacity-80">
-                  {betAmount} ETH → {personalReturnB.totalReturn} ETH
-                </div>
-                <div className="text-xs opacity-60">
-                  ({personalReturnB.odds}x odds)
-                </div>
-              </button>
-            </div>
-
-            {/* Bet Amount */}
-            <div className="mb-4">
-              <label className="block text-gray-300 text-sm mb-2">Bet Amount (ETH)</label>
-              <input
-                type="number"
-                value={betAmount}
-                onChange={(e) => setBetAmount(e.target.value)}
-                className="w-full bg-[#1C1D21] border border-gray-600 rounded-lg px-3 py-2 text-white"
-                placeholder="0.0002"
-                step="0.0001"
-                min="0"
-              />
-            </div>
-
-            <button
-              onClick={handleBet}
-              disabled={!selectedSide || !betAmount || isPending || isConfirming}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white py-3 rounded-lg font-medium transition-colors"
-            >
-              {isPending || isConfirming ? "Processing..." : "Vote"}
-            </button>
-          </div>
+        {/* Countdown Timer */}
+        {contract.status === 0 && (
+          <CountdownTimer endTime={contract.bettingEndTime} />
         )}
 
-        {/* Live Debate */}
-        <div className="bg-[#2C2D33] rounded-lg p-4">
-          <h3 className="text-white font-medium mb-4">
-            Live Debate
-          </h3>
-          <div className="text-gray-400 text-sm mb-4">
-            {comments.length} Opinion{comments.length !== 1 ? 's' : ''}
-          </div>
+        {/* Bet Button */}
+        {isConnected && contract.status === 0 && (
+          <button
+            onClick={() => setShowBetModal(true)}
+            className="w-full bg-primary text-gray-1000 py-4 rounded-xl font-bold text-lg hover:bg-primary/90 transition-colors mb-8"
+          >
+            Bet
+          </button>
+        )}
 
-          {/* Comments List */}
-          <div className="max-h-60 overflow-y-auto mb-4 space-y-3">
-            {comments.length > 0 ? comments.map((comment: Comment, index: number) => (
-              <div key={index} className="bg-[#1C1D21] rounded-lg p-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-6 h-6 bg-gray-600 rounded-full flex items-center justify-center">
-                    <span className="text-xs text-white">
-                      {comment.commenter.slice(2, 4).toUpperCase()}
-                    </span>
-                  </div>
-                  <span className="text-gray-400 text-xs">
-                    {comment.commenter.slice(0, 6)}...{comment.commenter.slice(-4)}
-                  </span>
-                  <span className="text-gray-500 text-xs">
-                    {new Date(Number(comment.timestamp) * 1000).toLocaleString()}
-                  </span>
-                </div>
-                <p className="text-gray-300 text-sm">{comment.content}</p>
-              </div>
-            )) : (
-              <div className="text-gray-500 text-center py-8">
-                No comments yet. Be the first to share your opinion!
-              </div>
-            )}
-          </div>
+        {/* Live Debate Card - Show for both open and closed status */}
+        <LiveDebateCard 
+          commentsCount={comments.length}
+          latestComment={comments.length > 0 ? comments[0] : undefined}
+          onClick={() => setShowLiveDebate(true)}
+        />
 
-          {/* Comment Input */}
-          {isConnected && (
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                className="flex-1 bg-[#1C1D21] border border-gray-600 rounded-lg px-3 py-2 text-white text-sm"
-                placeholder="Express your opinion..."
-                maxLength={500}
+      </div>
+
+      {/* Result to Bottom Section with gray-900 background */}
+      <div className="bg-gray-900 -mt-8">
+        <div className="max-w-4xl mx-auto px-4 pb-6 sm:pb-8">
+          {/* Result Section - Only show when closed */}
+          {(contract.status === 1 || contract.status === 2 || contract.status === 3) && (
+            <div className="pt-6 sm:pt-8">
+              <ResultSection 
+                partyA={contract.partyA}
+                partyB={contract.partyB}
+                winner={contract.winner}
               />
-              <button
-                onClick={handleComment}
-                disabled={!comment.trim() || isPending || isConfirming}
-                className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-              >
-                Comment
-              </button>
             </div>
           )}
+
+          {/* Debate TL;DR */}
+          <div className={contract.status === 0 ? "pb-24" : ""}>
+            <div className="pt-6 sm:pt-8 px-6">
+              <h2 className="text-white text-xl font-bold mb-1">Debate TL;DR</h2>
+              <p className="text-gray-100 text-sm mb-6">{comments.length} Opinion</p>
+
+              <div className="space-y-6">
+                <div>
+                  <h3 className="font-bold text-lg mb-4" style={{color: '#85E0A3'}}>Viewpoint 1</h3>
+                  <div className="space-y-3">
+                    <div className="border-l-4 pl-4" style={{borderColor: '#009951'}}>
+                      <p className="text-gray-100 text-sm leading-relaxed">Mom&apos;s just trying to control you. Stand your ground!</p>
+                    </div>
+                    <div className="border-l-4 pl-4" style={{borderColor: '#009951'}}>
+                      <p className="text-gray-100 text-sm leading-relaxed">You&apos;ll never grow up.</p>
+                    </div>
+                    <div className="border-l-4 pl-4" style={{borderColor: '#009951'}}>
+                      <p className="text-gray-100 text-sm leading-relaxed">Traditions aren&apos;t chains. You need to respect your roots.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="font-bold text-lg mb-4" style={{color: '#F4776A'}}>Viewpoint 2</h3>
+                  <div className="space-y-3">
+                    <div className="border-l-4 pl-4" style={{borderColor: '#F4776A'}}>
+                      <p className="text-gray-100 text-sm leading-relaxed">Mom&apos;s just trying to control you.</p>
+                    </div>
+                    <div className="border-l-4 pl-4" style={{borderColor: '#F4776A'}}>
+                      <p className="text-gray-100 text-sm leading-relaxed">Traditions aren&apos;t chains. You need to respect your roots.</p>
+                    </div>
+                    <div className="border-l-4 pl-4" style={{borderColor: '#F4776A'}}>
+                      <p className="text-gray-100 text-sm leading-relaxed">You&apos;ll never grow up.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-
-        {/* Transaction Status */}
-        {hash && (
-          <div className="mt-4 p-3 bg-blue-900/20 border border-blue-500/30 rounded-lg">
-            <p className="text-blue-400 text-sm">
-              Transaction submitted: 
-              <a 
-                href={`https://sepolia.basescan.org/tx/${hash}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline ml-1"
-              >
-                View on Explorer
-              </a>
-            </p>
-          </div>
-        )}
-
-        {error && (
-          <div className="mt-4 p-3 bg-red-900/20 border border-red-500/30 rounded-lg">
-            <p className="text-red-400 text-sm">{error.message}</p>
-          </div>
-        )}
       </div>
+
+      {/* Live Debate Bottom Sheet */}
+      <LiveDebateBottomSheet 
+        isOpen={showLiveDebate}
+        onClose={() => setShowLiveDebate(false)}
+        comments={comments}
+        commentsCount={comments.length}
+        isConnected={isConnected}
+        contractStatus={contract.status}
+        comment={comment}
+        setComment={setComment}
+        onSubmitComment={handleComment}
+        onBetClick={() => setShowBetModal(true)}
+        isPending={isPending}
+        isConfirming={isConfirming}
+      />
+
+      {/* Bet Modal */}
+      <BetModal 
+        isOpen={showBetModal}
+        onClose={() => setShowBetModal(false)}
+        partyA={contract.partyA}
+        partyB={contract.partyB}
+        oddsA={oddsA}
+        oddsB={oddsB}
+        selectedSide={selectedSide}
+        setSelectedSide={setSelectedSide}
+        betAmount={betAmount}
+        setBetAmount={setBetAmount}
+        onBet={handleBet}
+        isPending={isPending}
+        isConfirming={isConfirming}
+      />
+
+      {/* Error message */}
+      {error && (
+        <div className="fixed bottom-20 left-4 right-4 max-w-md mx-auto bg-red-500/20 border border-red-500 rounded-xl p-4">
+          <p className="text-red-400 text-sm">{error.message}</p>
+        </div>
+      )}
+
+      {/* Bottom Input Bar - Only show for open status */}
+      {contract.status === 0 && (
+        <div className="fixed bottom-0 left-0 right-0 bg-gray-1000 border-t border-gray-800 p-4">
+          <button
+            onClick={() => setShowLiveDebate(true)}
+            className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-left text-gray-400 hover:bg-gray-800 transition-colors flex items-center justify-between"
+          >
+            <span>Express your opinion...</span>
+            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            </svg>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
