@@ -58,23 +58,40 @@ function decode(encoded: string) {
   return JSON.parse(Buffer.from(encoded, "base64url").toString("utf-8"));
 }
 
+export async function GET() {
+  return Response.json({ success: true, message: "Webhook endpoint is ready" });
+}
+
 export async function POST(request: Request) {
-  const requestJson = await request.json();
+  let event: any;
+  let fid: number;
+  
+  try {
+    const requestJson = await request.json();
 
-  const { header: encodedHeader, payload: encodedPayload } = requestJson;
+    const { header: encodedHeader, payload: encodedPayload } = requestJson;
 
-  const headerData = decode(encodedHeader);
-  const event = decode(encodedPayload);
+    if (!encodedHeader || !encodedPayload) {
+      return Response.json({ success: true });
+    }
 
-  const { fid, key } = headerData;
+    const headerData = decode(encodedHeader);
+    event = decode(encodedPayload);
 
-  const valid = await verifyFidOwnership(fid, key);
+    fid = headerData.fid;
+    const key = headerData.key;
 
-  if (!valid) {
-    return Response.json(
-      { success: false, error: "Invalid FID ownership" },
-      { status: 401 },
-    );
+    const valid = await verifyFidOwnership(fid, key);
+
+    if (!valid) {
+      return Response.json(
+        { success: false, error: "Invalid FID ownership" },
+        { status: 401 },
+      );
+    }
+  } catch (error) {
+    console.error("Webhook processing error:", error);
+    return Response.json({ success: true });
   }
 
   switch (event.event) {
