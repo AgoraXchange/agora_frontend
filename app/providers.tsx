@@ -5,6 +5,7 @@ import { WagmiProvider, createConfig, http } from "wagmi";
 import { baseSepolia } from "wagmi/chains";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MiniKitProvider } from "@coinbase/onchainkit/minikit";
+import { OnchainKitProvider } from "@coinbase/onchainkit";
 import { coinbaseWallet } from "wagmi/connectors";
 
 // Create query client
@@ -17,7 +18,7 @@ const wagmiConfig = createConfig({
     coinbaseWallet({
       appName: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME || "Agora",
       appLogoUrl: process.env.NEXT_PUBLIC_ICON_URL,
-      preference: "smartWalletOnly",
+      preference: "all", // Changed from "smartWalletOnly" to "all" to support all wallet types
     }),
   ],
   transports: {
@@ -28,22 +29,35 @@ const wagmiConfig = createConfig({
 
 export function Providers(props: { children: ReactNode }) {
   return (
-    <WagmiProvider config={wagmiConfig} reconnectOnMount={true}>
+    <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <MiniKitProvider
+        <OnchainKitProvider
           apiKey={process.env.NEXT_PUBLIC_ONCHAINKIT_API_KEY}
           chain={baseSepolia}
           config={{
             appearance: {
-              mode: "auto",
-              theme: "mini-app-theme",
-              name: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME || "Agora",
+              mode: "dark",
+              theme: "dark",
+              name: "Agora",
               logo: process.env.NEXT_PUBLIC_ICON_URL,
             },
           }}
         >
-          {props.children}
-        </MiniKitProvider>
+          <MiniKitProvider
+            apiKey={process.env.NEXT_PUBLIC_ONCHAINKIT_API_KEY}
+            chain={baseSepolia}
+            config={{
+              appearance: {
+                mode: "auto",
+                theme: "mini-app-theme",
+                name: "Agora",
+                logo: process.env.NEXT_PUBLIC_ICON_URL,
+              },
+            }}
+          >
+            {props.children}
+          </MiniKitProvider>
+        </OnchainKitProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );
