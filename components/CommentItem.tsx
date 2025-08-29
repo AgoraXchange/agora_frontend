@@ -6,10 +6,9 @@ import { base } from "wagmi/chains";
 
 interface CommentItemProps {
   comment: Comment;
-  index: number;
 }
 
-export function CommentItem({ comment, index }: CommentItemProps) {
+export function CommentItem({ comment }: CommentItemProps) {
   return (
     <div className="flex items-start gap-3">
       <div className="w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center flex-shrink-0">

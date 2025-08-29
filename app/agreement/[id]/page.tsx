@@ -58,24 +58,9 @@ export default function AgreementDetailPage() {
   const contract = contractData as Contract;
   const comments = (commentsData as unknown as Comment[][])?.[0] || [];
   
-  // 각 댓글 작성자의 베팅 정보를 가져와서 side 결정
-  const getCommentSide = async (commenterAddress: string): Promise<number> => {
-    try {
-      // getUserBetsPaginated를 사용해서 해당 사용자의 베팅 정보 확인
-      // 이 함수의 정확한 파라미터는 ABI를 확인해야 하지만, 일반적으로는:
-      // getUserBetsPaginated(contractId, userAddress, startIndex, limit)
-      
-      // 일단 임시로 랜덤하게 배정 (실제로는 베팅 정보를 확인해야 함)
-      const hash = commenterAddress.slice(-1);
-      return parseInt(hash, 16) % 2 === 0 ? 1 : 2;
-    } catch (error) {
-      console.error("Error getting user bet side:", error);
-      return 1; // 기본값
-    }
-  };
   
   // 댓글에 side 정보 추가
-  const commentsWithSide = comments.map((comment, index) => ({
+  const commentsWithSide = comments.map((comment) => ({
     ...comment,
     side: comment.side || (comment.commenter.slice(-1).charCodeAt(0) % 2 === 0 ? 1 : 2) // 임시로 주소 기반으로 side 결정
   }));
@@ -175,11 +160,7 @@ export default function AgreementDetailPage() {
             <span className="text-white text-lg sm:text-xl font-bold">agora</span>
           </div>
           
-          <button className="p-2 rounded-lg hover:bg-gray-800 transition-colors">
-            <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-          </button>
+          <div className="w-10 sm:w-12"></div>
         </div>
       </header>
 
