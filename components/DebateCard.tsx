@@ -1,5 +1,9 @@
 "use client";
 
+import { formatEther } from "viem";
+import { Name } from "@coinbase/onchainkit/identity";
+import { base } from "wagmi/chains";
+
 interface DebateCardProps {
   id: string;
   status: "open" | "closed";
@@ -19,6 +23,8 @@ interface DebateCardProps {
   };
   participants?: number;
   timeRemaining?: string;
+  creator?: string;
+  totalVolume?: bigint;
   author?: {
     name: string;
     avatar?: string;
@@ -33,9 +39,9 @@ export function DebateCard({
   debatePoints,
   option1,
   option2,
-  participants,
   timeRemaining,
-  author,
+  creator,
+  totalVolume,
   image,
   onClick,
 }: DebateCardProps) {
@@ -116,22 +122,33 @@ export function DebateCard({
         </div>
       </div>
 
-      {/* Footer with participants and time */}
+      {/* Footer with creator and volume */}
       <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-800">
         <div className="flex items-center gap-2">
-          {author?.avatar && (
+          {/* Creator profile */}
+          <div className="w-6 h-6 rounded-full bg-gray-800 flex items-center justify-center">
             <img 
-              src={author.avatar} 
-              alt={author.name}
-              className="w-6 h-6 rounded-full"
+              src="/assets/icons/default_avatar.svg" 
+              alt="Default Avatar"
+              className="w-4 h-4"
             />
-          )}
+          </div>
           <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-100">
-            {author?.name && <span>{author.name}</span>}
-            {participants && (
+            {creator ? (
+              <Name 
+                address={creator as `0x${string}`}
+                chain={base}
+                className="text-gray-100 text-xs"
+              />
+            ) : (
+              <span>Unknown</span>
+            )}
+            {totalVolume !== undefined && (
               <>
                 <span className="text-gray-800">•</span>
-                <span>{participants.toLocaleString()} participants</span>
+                <span className="text-gray-100">
+                  Vol. {parseFloat(formatEther(totalVolume)).toFixed(3)} ETH
+                </span>
               </>
             )}
           </div>
