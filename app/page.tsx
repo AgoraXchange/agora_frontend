@@ -7,7 +7,6 @@ import { useReadContract, useReadContracts } from "wagmi";
 import { Header } from "@/components/Header";
 import { DebateCard } from "@/components/DebateCard";
 import { Button } from "./components/DemoComponents";
-import { CreateAgreement } from "./components/CreateAgreement";
 import { AGREEMENT_FACTORY_ADDRESS, AGREEMENT_FACTORY_ABI } from "@/lib/agreementFactoryABI";
 
 interface AgreementContract {
@@ -32,10 +31,14 @@ interface AgreementContract {
 export default function App() {
   const { setFrameReady, isFrameReady, context } = useMiniKit();
   const [frameAdded, setFrameAdded] = useState(false);
-  const [showCreateForm, setShowCreateForm] = useState(false);
   const router = useRouter();
 
   const addFrame = useAddFrame();
+
+  // Prefetch create page on mount for faster navigation
+  useEffect(() => {
+    router.prefetch('/create');
+  }, [router]);
 
   // Read contract count
   const { data: agreementCountData } = useReadContract({
@@ -100,7 +103,8 @@ export default function App() {
           totalComments: data[14],
         };
       })
-      .filter((agreement): agreement is AgreementContract => agreement !== null);
+      .filter((agreement): agreement is AgreementContract => agreement !== null)
+      .reverse(); // Reverse to show newest first (highest ID first)
   }, [agreementsData]);
 
   useEffect(() => {
@@ -139,24 +143,6 @@ export default function App() {
     return null;
   }, [context, frameAdded, handleAddFrame]);
 
-  if (showCreateForm) {
-    return (
-      <div className="min-h-screen bg-gray-1000">
-        <Header saveFrameButton={saveFrameButton} />
-        <div className="pt-14 sm:pt-16">
-          <div className="max-w-2xl mx-auto px-4 py-6">
-            <button
-              onClick={() => setShowCreateForm(false)}
-              className="mb-4 text-primary hover:text-primary/80 flex items-center gap-2 text-sm"
-            >
-              ← Back to debates
-            </button>
-            <CreateAgreement />
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-1000">
@@ -178,7 +164,7 @@ export default function App() {
             <div className="text-center py-12">
               <p className="text-gray-100 text-lg mb-4">No debates yet</p>
               <button
-                onClick={() => setShowCreateForm(true)}
+                onClick={() => router.push('/create')}
                 className="bg-primary text-gray-1000 px-6 py-3 rounded-lg font-medium hover:bg-primary/90 transition-colors"
               >
                 Create the first debate
@@ -237,7 +223,8 @@ export default function App() {
                       label: agreement.partyB,
                       votes: poolBVotes,
                     }}
-                    participants={Number(agreement.totalBettors)}
+                    creator={agreement.creator}
+                    totalVolume={agreement.totalPoolA + agreement.totalPoolB}
                     timeRemaining={formatTimeRemaining(agreement.bettingEndTime)}
                     onClick={() => router.push(`/agreement/${agreement.id}`)}
                   />
@@ -248,7 +235,10 @@ export default function App() {
 
           {/* Floating action button for mobile */}
           <button
-            onClick={() => setShowCreateForm(true)}
+            onClick={() => {
+              router.prefetch('/create');
+              router.push('/create');
+            }}
             className="md:hidden fixed bottom-6 right-6 w-14 h-14 bg-primary rounded-full shadow-lg flex items-center justify-center hover:bg-primary/90 transition-colors z-40"
           >
             <svg 
