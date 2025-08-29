@@ -3,6 +3,7 @@ export interface Comment {
   content: string;
   timestamp: bigint;
   likes: bigint;
+  side: number; // 1 for Viewpoint 1, 2 for Viewpoint 2
 }
 
 export interface Contract {
