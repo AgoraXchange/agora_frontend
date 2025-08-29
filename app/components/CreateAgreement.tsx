@@ -130,12 +130,22 @@ export function CreateAgreement() {
         {/* Title Field */}
         <div className="mb-4">
           <label className="block text-white text-lg font-medium mb-2">Title</label>
-          <input
-            type="text"
+          <textarea
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            className="w-full px-4 py-3 bg-gray-900 border border-gray-800 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-primary transition-colors"
+            className="w-full px-4 py-3 bg-gray-900 border border-gray-800 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-primary transition-colors resize-none overflow-hidden"
             placeholder="Title"
+            maxLength={300}
+            rows={1}
+            style={{
+              minHeight: '48px',
+              height: 'auto'
+            }}
+            onInput={(e) => {
+              const target = e.target as HTMLTextAreaElement;
+              target.style.height = '48px';
+              target.style.height = target.scrollHeight + 'px';
+            }}
           />
         </div>
 
@@ -160,21 +170,41 @@ export function CreateAgreement() {
         <div className="mb-4">
           <label className="block text-white text-lg font-medium mb-2">Debate Points</label>
           <div className="space-y-3">
-            <input
-              type="text"
+            <textarea
               value={partyA}
               onChange={(e) => setPartyA(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-900 border border-gray-800 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-primary transition-colors"
+              className="w-full px-4 py-3 bg-gray-900 border border-gray-800 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-primary transition-colors resize-none overflow-hidden"
               placeholder="Point 1"
+              maxLength={50}
+              rows={1}
+              style={{
+                minHeight: '48px',
+                height: 'auto'
+              }}
+              onInput={(e) => {
+                const target = e.target as HTMLTextAreaElement;
+                target.style.height = '48px';
+                target.style.height = target.scrollHeight + 'px';
+              }}
             />
-            <input
-              type="text"
+            <textarea
               value={partyB}
               onChange={(e) => setPartyB(e.target.value)}
-              className={`w-full px-4 py-3 bg-gray-900 border rounded-xl text-white placeholder-gray-400 focus:outline-none transition-colors ${
+              className={`w-full px-4 py-3 bg-gray-900 border rounded-xl text-white placeholder-gray-400 focus:outline-none transition-colors resize-none overflow-hidden ${
                 !partyB.trim() && partyA.trim() ? 'border-red-500' : 'border-gray-800 focus:border-primary'
               }`}
               placeholder="Point 2"
+              maxLength={50}
+              rows={1}
+              style={{
+                minHeight: '48px',
+                height: 'auto'
+              }}
+              onInput={(e) => {
+                const target = e.target as HTMLTextAreaElement;
+                target.style.height = '48px';
+                target.style.height = target.scrollHeight + 'px';
+              }}
             />
             {!partyB.trim() && partyA.trim() && (
               <p className="text-red-400 text-sm mt-2">This field is required.</p>
