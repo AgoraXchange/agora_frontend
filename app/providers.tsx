@@ -40,10 +40,7 @@ export function Providers(props: { children: ReactNode }) {
               name: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME || "Agora",
               logo: process.env.NEXT_PUBLIC_ICON_URL,
             },
-            wagmi: {
-              config: wagmiConfig,
-            },
-          } as any}
+          }}
         >
           {props.children}
         </MiniKitProvider>

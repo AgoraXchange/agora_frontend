@@ -147,7 +147,7 @@ export function AgreementList() {
   const router = useRouter();
   
   const { data: contractCounter } = useReadContract({
-    address: AGREEMENT_FACTORY_ADDRESS,
+    address: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
     abi: AGREEMENT_FACTORY_ABI,
     functionName: "contractCounter",
   });
@@ -155,29 +155,45 @@ export function AgreementList() {
   const count = contractCounter ? Number(contractCounter) : 0;
   const startIndex = Math.max(0, count - 10);
   
-  // Use type assertion to avoid deep type inference
-  const contractReads: any = [];
+  // Create contract read configurations
+  const contractReads = [];
   for (let i = startIndex; i < count; i++) {
     contractReads.push({
-      address: AGREEMENT_FACTORY_ADDRESS,
+      address: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
       abi: AGREEMENT_FACTORY_ABI,
-      functionName: 'getContract',
+      functionName: 'getContract' as const,
       args: [BigInt(i)],
     });
   }
 
-  const { data: contractsData }: { data: any } = useReadContracts({
+  const { data: contractsData } = useReadContracts({
     contracts: contractReads,
     query: {
       enabled: count > 0,
     },
-  } as any);
+  });
 
   const contracts: AgreementContract[] = contractsData
     ? contractsData
-        .map((result: any, index: number): AgreementContract | null => {
+        .map((result, index): AgreementContract | null => {
           if (result?.status === 'success' && result?.result) {
-            const data = result.result;
+            const data = result.result as {
+              creator: string;
+              topic: string;
+              description: string;
+              partyA: string;
+              partyB: string;
+              bettingEndTime: bigint;
+              status: number;
+              winner: number;
+              totalPoolA: bigint;
+              totalPoolB: bigint;
+              partyRewardPercentage: bigint;
+              minBetAmount: bigint;
+              maxBetAmount: bigint;
+              totalBettors: bigint;
+              totalComments: bigint;
+            };
             
             return {
               id: startIndex + index,
@@ -200,7 +216,7 @@ export function AgreementList() {
           }
           return null;
         })
-        .filter((c: any): c is AgreementContract => c !== null)
+        .filter((c): c is AgreementContract => c !== null)
     : [];
 
   const handleSelectAgreement = (id: number) => {

@@ -56,7 +56,7 @@ export function CreateAgreement() {
 
     try {
       writeContract({
-        address: AGREEMENT_FACTORY_ADDRESS,
+        address: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
         abi: AGREEMENT_FACTORY_ABI,
         functionName: "createContract",
         args: [

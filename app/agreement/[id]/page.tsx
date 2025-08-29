@@ -27,7 +27,7 @@ export default function AgreementDetailPage() {
   
   // Contract data
   const { data: contractData, refetch: refetchContract } = useReadContract({
-    address: AGREEMENT_FACTORY_ADDRESS,
+    address: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
     abi: AGREEMENT_FACTORY_ABI,
     functionName: "getContract",
     args: [BigInt(contractId)],
@@ -35,7 +35,7 @@ export default function AgreementDetailPage() {
 
   // Comments data
   const { data: commentsData, refetch: refetchComments } = useReadContract({
-    address: AGREEMENT_FACTORY_ADDRESS,
+    address: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
     abi: AGREEMENT_FACTORY_ABI,
     functionName: "getComments",
     args: [BigInt(contractId), BigInt(0), BigInt(50)],
@@ -45,7 +45,7 @@ export default function AgreementDetailPage() {
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
   const contract = contractData as Contract;
-  const comments = (commentsData as Comment[][])?.[0] || [];
+  const comments = (commentsData as unknown as Comment[][])?.[0] || [];
 
   useEffect(() => {
     if (isSuccess) {
@@ -80,7 +80,7 @@ export default function AgreementDetailPage() {
       const amount = parseEther(betAmount);
       
       writeContract({
-        address: AGREEMENT_FACTORY_ADDRESS,
+        address: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
         abi: AGREEMENT_FACTORY_ABI,
         functionName: "simpleBet",
         args: [BigInt(contractId), selectedSide],
@@ -97,7 +97,7 @@ export default function AgreementDetailPage() {
     
     try {
       writeContract({
-        address: AGREEMENT_FACTORY_ADDRESS,
+        address: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
         abi: AGREEMENT_FACTORY_ABI,
         functionName: "addComment",
         args: [BigInt(contractId), comment.trim()],

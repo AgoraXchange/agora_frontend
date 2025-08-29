@@ -63,7 +63,23 @@ export default function App() {
     return agreementsData
       .map((result, index) => {
         if (!result.result) return null;
-        const data = result.result as any;
+        const data = result.result as unknown as [
+          string, // creator
+          string, // topic
+          string, // description
+          string, // partyA
+          string, // partyB
+          bigint, // bettingEndTime
+          number, // status
+          number, // winner
+          bigint, // totalPoolA
+          bigint, // totalPoolB
+          bigint, // partyRewardPercentage
+          bigint, // minBetAmount
+          bigint, // maxBetAmount
+          bigint, // totalBettors
+          bigint  // totalComments
+        ];
         
         return {
           id: index,
