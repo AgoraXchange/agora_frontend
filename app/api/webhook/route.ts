@@ -62,8 +62,18 @@ export async function GET() {
   return Response.json({ success: true, message: "Webhook endpoint is ready" });
 }
 
+interface NotificationDetails {
+  url: string;
+  token: string;
+}
+
+interface FrameEvent {
+  event: string;
+  notificationDetails?: NotificationDetails;
+}
+
 export async function POST(request: Request) {
-  let event: any;
+  let event: FrameEvent;
   let fid: number;
   
   try {
@@ -120,12 +130,14 @@ export async function POST(request: Request) {
     }
     case "notifications_enabled": {
       console.log("notifications_enabled", event.notificationDetails);
-      await setUserNotificationDetails(fid, event.notificationDetails);
-      await sendFrameNotification({
-        fid,
-        title: `Welcome to ${appName}`,
-        body: `Thank you for enabling notifications for ${appName}`,
-      });
+      if (event.notificationDetails) {
+        await setUserNotificationDetails(fid, event.notificationDetails);
+        await sendFrameNotification({
+          fid,
+          title: `Welcome to ${appName}`,
+          body: `Thank you for enabling notifications for ${appName}`,
+        });
+      }
 
       break;
     }
