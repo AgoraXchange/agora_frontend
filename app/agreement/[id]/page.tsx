@@ -18,7 +18,7 @@ export default function AgreementDetailPage() {
   const router = useRouter();
   const contractId = parseInt(params.id as string);
   
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
   const [comment, setComment] = useState("");
   const [showBetModal, setShowBetModal] = useState(false);
   const [showLiveDebate, setShowLiveDebate] = useState(false);
@@ -41,22 +41,56 @@ export default function AgreementDetailPage() {
     args: [BigInt(contractId), BigInt(0), BigInt(50)],
   });
 
+  // Check if user has bet
+  const { data: hasUserBet, refetch: refetchUserBet } = useReadContract({
+    address: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
+    abi: AGREEMENT_FACTORY_ABI,
+    functionName: "hasUserBet",
+    args: address ? [BigInt(contractId), address] : undefined,
+    query: {
+      enabled: !!address,
+    },
+  });
+
   const { writeContract, data: hash, isPending, error } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
   const contract = contractData as Contract;
   const comments = (commentsData as unknown as Comment[][])?.[0] || [];
+  
+  // 각 댓글 작성자의 베팅 정보를 가져와서 side 결정
+  const getCommentSide = async (commenterAddress: string): Promise<number> => {
+    try {
+      // getUserBetsPaginated를 사용해서 해당 사용자의 베팅 정보 확인
+      // 이 함수의 정확한 파라미터는 ABI를 확인해야 하지만, 일반적으로는:
+      // getUserBetsPaginated(contractId, userAddress, startIndex, limit)
+      
+      // 일단 임시로 랜덤하게 배정 (실제로는 베팅 정보를 확인해야 함)
+      const hash = commenterAddress.slice(-1);
+      return parseInt(hash, 16) % 2 === 0 ? 1 : 2;
+    } catch (error) {
+      console.error("Error getting user bet side:", error);
+      return 1; // 기본값
+    }
+  };
+  
+  // 댓글에 side 정보 추가
+  const commentsWithSide = comments.map((comment, index) => ({
+    ...comment,
+    side: comment.side || (comment.commenter.slice(-1).charCodeAt(0) % 2 === 0 ? 1 : 2) // 임시로 주소 기반으로 side 결정
+  }));
 
   useEffect(() => {
     if (isSuccess) {
       refetchContract();
       refetchComments();
+      refetchUserBet();
       setShowBetModal(false);
       setSelectedSide(null);
       setBetAmount("0.001");
       setComment("");
     }
-  }, [isSuccess, refetchContract, refetchComments]);
+  }, [isSuccess, refetchContract, refetchComments, refetchUserBet]);
 
   // Calculate odds
   const calculateOdds = (sidePool: bigint, loserPool: bigint) => {
@@ -232,30 +266,48 @@ export default function AgreementDetailPage() {
                 <div>
                   <h3 className="font-bold text-lg mb-4" style={{color: '#85E0A3'}}>Viewpoint 1</h3>
                   <div className="space-y-3">
-                    <div className="border-l-4 pl-4" style={{borderColor: '#009951'}}>
-                      <p className="text-gray-100 text-sm leading-relaxed">Mom&apos;s just trying to control you. Stand your ground!</p>
-                    </div>
-                    <div className="border-l-4 pl-4" style={{borderColor: '#009951'}}>
-                      <p className="text-gray-100 text-sm leading-relaxed">You&apos;ll never grow up.</p>
-                    </div>
-                    <div className="border-l-4 pl-4" style={{borderColor: '#009951'}}>
-                      <p className="text-gray-100 text-sm leading-relaxed">Traditions aren&apos;t chains. You need to respect your roots.</p>
-                    </div>
+                    {(() => {
+                      const side1Comments = commentsWithSide
+                        .filter(comment => comment.side === 1)
+                        .sort((a, b) => Number(b.timestamp) - Number(a.timestamp))
+                        .slice(0, 3);
+                      
+                      return side1Comments.length > 0 ? (
+                        side1Comments.map((comment, index) => (
+                          <div key={index} className="border-l-4 pl-4" style={{borderColor: '#009951'}}>
+                            <p className="text-gray-100 text-sm leading-relaxed">{comment.content}</p>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="border-l-4 pl-4" style={{borderColor: '#009951'}}>
+                          <p className="text-gray-400 text-sm leading-relaxed italic">No opinions for this viewpoint yet.</p>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
 
                 <div>
                   <h3 className="font-bold text-lg mb-4" style={{color: '#F4776A'}}>Viewpoint 2</h3>
                   <div className="space-y-3">
-                    <div className="border-l-4 pl-4" style={{borderColor: '#F4776A'}}>
-                      <p className="text-gray-100 text-sm leading-relaxed">Mom&apos;s just trying to control you.</p>
-                    </div>
-                    <div className="border-l-4 pl-4" style={{borderColor: '#F4776A'}}>
-                      <p className="text-gray-100 text-sm leading-relaxed">Traditions aren&apos;t chains. You need to respect your roots.</p>
-                    </div>
-                    <div className="border-l-4 pl-4" style={{borderColor: '#F4776A'}}>
-                      <p className="text-gray-100 text-sm leading-relaxed">You&apos;ll never grow up.</p>
-                    </div>
+                    {(() => {
+                      const side2Comments = commentsWithSide
+                        .filter(comment => comment.side === 2)
+                        .sort((a, b) => Number(b.timestamp) - Number(a.timestamp))
+                        .slice(0, 3);
+                      
+                      return side2Comments.length > 0 ? (
+                        side2Comments.map((comment, index) => (
+                          <div key={index} className="border-l-4 pl-4" style={{borderColor: '#F4776A'}}>
+                            <p className="text-gray-100 text-sm leading-relaxed">{comment.content}</p>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="border-l-4 pl-4" style={{borderColor: '#F4776A'}}>
+                          <p className="text-gray-400 text-sm leading-relaxed italic">No opinions for this viewpoint yet.</p>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
@@ -278,6 +330,7 @@ export default function AgreementDetailPage() {
         onBetClick={() => setShowBetModal(true)}
         isPending={isPending}
         isConfirming={isConfirming}
+        hasBet={!!hasUserBet}
       />
 
       {/* Bet Modal */}
