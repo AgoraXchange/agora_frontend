@@ -18,7 +18,7 @@ const wagmiConfig = createConfig({
     coinbaseWallet({
       appName: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME || "Agora",
       appLogoUrl: process.env.NEXT_PUBLIC_ICON_URL,
-      preference: "all", // Changed from "smartWalletOnly" to "all" to support all wallet types
+      preference: "smartWalletOnly",
     }),
   ],
   transports: {
