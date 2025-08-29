@@ -16,6 +16,7 @@ interface LiveDebateBottomSheetProps {
   onBetClick: () => void;
   isPending: boolean;
   isConfirming: boolean;
+  hasBet?: boolean;
 }
 
 export function LiveDebateBottomSheet({
@@ -31,6 +32,7 @@ export function LiveDebateBottomSheet({
   onBetClick,
   isPending,
   isConfirming,
+  hasBet = false,
 }: LiveDebateBottomSheetProps) {
   if (!isOpen) return null;
 
@@ -69,9 +71,6 @@ export function LiveDebateBottomSheet({
             {/* Tabs */}
             <div className="flex gap-2 mb-4">
               <button className="bg-white text-gray-1000 px-4 py-2 rounded-lg font-medium text-sm">
-                Popularity
-              </button>
-              <button className="bg-gray-800 text-gray-100 px-4 py-2 rounded-lg font-medium text-sm hover:bg-gray-100 hover:text-gray-900 transition-colors">
                 Latest
               </button>
             </div>
@@ -97,21 +96,34 @@ export function LiveDebateBottomSheet({
                 <input
                   type="text"
                   value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  className="flex-1 bg-gray-800 border-0 rounded-xl px-4 py-3 text-white text-sm placeholder-gray-100"
-                  placeholder="Express your opinion..."
+                  onChange={(e) => hasBet && setComment(e.target.value)}
+                  className={`flex-1 border-0 rounded-xl px-4 py-3 text-sm ${
+                    hasBet 
+                      ? "bg-gray-800 text-white placeholder-gray-100" 
+                      : "bg-gray-800/50 text-gray-400 placeholder-gray-400 cursor-not-allowed"
+                  }`}
+                  placeholder={hasBet ? "Express your opinion..." : "Betting required before debate"}
                   maxLength={500}
+                  disabled={!hasBet}
                 />
                 <button
                   onClick={onSubmitComment}
-                  disabled={!comment.trim() || isPending || isConfirming}
-                  className="text-primary hover:text-primary/80 disabled:text-gray-100 p-2"
+                  disabled={!hasBet || !comment.trim() || isPending || isConfirming}
+                  className={`p-2 ${
+                    hasBet && comment.trim() 
+                      ? "text-primary hover:text-primary/80" 
+                      : "text-gray-400 cursor-not-allowed"
+                  }`}
                 >
                   <img 
                     src="/assets/icons/arrow_right.svg" 
                     alt="Send" 
                     className="w-5 h-5"
-                    style={{ filter: 'brightness(0) saturate(100%) invert(68%) sepia(86%) saturate(370%) hue-rotate(123deg) brightness(96%) contrast(94%)' }}
+                    style={{ 
+                      filter: hasBet 
+                        ? 'brightness(0) saturate(100%) invert(68%) sepia(86%) saturate(370%) hue-rotate(123deg) brightness(96%) contrast(94%)' 
+                        : 'brightness(0) saturate(100%) invert(71%) sepia(0%) saturate(0%) hue-rotate(158deg) brightness(95%) contrast(86%)'
+                    }}
                   />
                 </button>
               </div>
