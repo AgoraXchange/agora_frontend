@@ -15,6 +15,9 @@ export async function generateMetadata(): Promise<Metadata> {
     title: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME,
     description:
       "The onchain colosseum of debate",
+    icons: {
+      icon: "/favicon.svg",
+    },
     other: {
       "fc:frame": JSON.stringify({
         version: "next",
