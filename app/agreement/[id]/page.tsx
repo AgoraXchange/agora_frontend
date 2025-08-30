@@ -28,6 +28,12 @@ export default function AgreementDetailPage() {
   const [betAmount, setBetAmount] = useState("0.001");
   const [lastAction, setLastAction] = useState<"bet" | "comment" | null>(null);
   const { trackDebateEvent, trackBetEvent, trackPageView } = useAnalytics();
+  const [winnerArguments, setWinnerArguments] = useState<{
+    Jury1: string;
+    Jury2: string;
+    Jury3: string;
+    Conclusion: string;
+  } | null>(null);
   
   // Contract data
   const { data: contractData, refetch: refetchContract } = useReadContract({
@@ -68,6 +74,42 @@ export default function AgreementDetailPage() {
     ...comment,
     side: comment.side || (comment.commenter.slice(-1).charCodeAt(0) % 2 === 0 ? 1 : 2) // 임시로 주소 기반으로 side 결정
   }));
+
+  // Fetch winner arguments when contract is settled
+  useEffect(() => {
+    const fetchWinnerArguments = async () => {
+      console.log('🔍 Checking contract status:', contract?.status);
+      if (contract && (contract.status === 1 || contract.status === 2 || contract.status === 3)) {
+        console.log('📡 Fetching winner arguments for contract:', contractId);
+        try {
+          const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/oracle/contracts/${contractId}/winner-arguments?lang=en`;
+          console.log('🌐 API URL:', url);
+          
+          const response = await fetch(url);
+          console.log('📥 Response status:', response.status, response.statusText);
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log('📊 API Response:', data);
+            if (data.success) {
+              console.log('✅ Setting winner arguments:', data.data);
+              setWinnerArguments(data.data);
+            } else {
+              console.log('❌ API returned success: false');
+            }
+          } else {
+            console.log('❌ Response not ok:', response.status);
+          }
+        } catch (error) {
+          console.error('💥 Failed to fetch winner arguments:', error);
+        }
+      } else {
+        console.log('⏳ Contract not settled yet or not available');
+      }
+    };
+
+    fetchWinnerArguments();
+  }, [contract, contractId]);
 
   useEffect(() => {
     if (isSuccess) {
@@ -243,11 +285,11 @@ export default function AgreementDetailPage() {
       <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8">
         {/* Author and timestamp */}
         <div className="flex items-center gap-2 mb-4 text-sm text-gray-100">
-          <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center">
-            <span className="text-xs text-gray-1000 font-bold">
-              {contract.creator.slice(2, 4).toUpperCase()}
-            </span>
-          </div>
+          <img 
+            src="/assets/icons/default_avatar.svg" 
+            alt="Profile" 
+            className="w-6 h-6"
+          />
           <span>{contract.creator.slice(0, 6)}...{contract.creator.slice(-4)}</span>
           <span className="text-gray-800">•</span>
           <span>{new Date().toLocaleDateString()}</span>
@@ -325,6 +367,7 @@ export default function AgreementDetailPage() {
                 partyA={contract.partyA}
                 partyB={contract.partyB}
                 winner={contract.winner}
+                winnerArguments={winnerArguments}
               />
             </div>
           )}
