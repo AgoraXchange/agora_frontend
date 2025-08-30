@@ -11,6 +11,7 @@ interface BetModalProps {
   oddsB: string;
   selectedSide: 1 | 2 | null;
   setSelectedSide: (side: 1 | 2 | null) => void;
+  onSideSelect?: (side: 1 | 2) => void;
   betAmount: string;
   setBetAmount: (amount: string) => void;
   onBet: () => void;
@@ -27,6 +28,7 @@ export function BetModal({
   oddsB,
   selectedSide,
   setSelectedSide,
+  onSideSelect,
   betAmount,
   setBetAmount,
   onBet,
@@ -39,6 +41,7 @@ export function BetModal({
 
   const handleSideSelect = (side: 1 | 2) => {
     setSelectedSide(side);
+    if (onSideSelect) onSideSelect(side);
     setShowAmountStep(true);
   };
 

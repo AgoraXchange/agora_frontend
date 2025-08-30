@@ -6,6 +6,8 @@ import { sendFrameNotification } from "@/lib/notification-client";
 import { http } from "viem";
 import { createPublicClient } from "viem";
 import { optimism } from "viem/chains";
+import { trackServerEvent } from "@/lib/server-analytics";
+import { EVENTS } from "@/lib/analytics";
 
 const appName = process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME;
 
@@ -118,14 +120,27 @@ export async function POST(request: Request) {
           title: `Welcome to ${appName}`,
           body: `Thank you for adding ${appName}`,
         });
+        // Server-side analytics: frame added with notifications
+        await trackServerEvent(EVENTS.FRAME_ADDED, fid, {
+          frame_action: "added",
+          has_notification_details: true,
+        });
       } else {
         await deleteUserNotificationDetails(fid);
+        // Server-side analytics: frame added without notifications
+        await trackServerEvent(EVENTS.FRAME_ADDED, fid, {
+          frame_action: "added",
+          has_notification_details: false,
+        });
       }
 
       break;
     case "frame_removed": {
       console.log("frame_removed");
       await deleteUserNotificationDetails(fid);
+      await trackServerEvent(EVENTS.FRAME_REMOVED, fid, {
+        frame_action: "removed",
+      });
       break;
     }
     case "notifications_enabled": {
@@ -137,6 +152,9 @@ export async function POST(request: Request) {
           title: `Welcome to ${appName}`,
           body: `Thank you for enabling notifications for ${appName}`,
         });
+        await trackServerEvent(EVENTS.NOTIFICATIONS_ENABLED, fid, {
+          frame_action: "notifications_enabled",
+        });
       }
 
       break;
@@ -144,6 +162,9 @@ export async function POST(request: Request) {
     case "notifications_disabled": {
       console.log("notifications_disabled");
       await deleteUserNotificationDetails(fid);
+      await trackServerEvent(EVENTS.NOTIFICATIONS_DISABLED, fid, {
+        frame_action: "notifications_disabled",
+      });
 
       break;
     }

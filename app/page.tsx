@@ -8,6 +8,8 @@ import { Header } from "@/components/Header";
 import { DebateCard } from "@/components/DebateCard";
 import { Button } from "./components/DemoComponents";
 import { AGREEMENT_FACTORY_ADDRESS, AGREEMENT_FACTORY_ABI } from "@/lib/agreementFactoryABI";
+import { useAnalytics } from "@/lib/hooks/useAnalytics";
+import { EVENTS } from "@/lib/analytics";
 
 interface AgreementContract {
   id: number;
@@ -32,13 +34,9 @@ export default function App() {
   const { setFrameReady, isFrameReady, context } = useMiniKit();
   const [frameAdded, setFrameAdded] = useState(false);
   const router = useRouter();
+  const { trackPageView, trackFrameEvent, trackDebateEvent } = useAnalytics();
 
   const addFrame = useAddFrame();
-
-  // Prefetch create page on mount for faster navigation
-  useEffect(() => {
-    router.prefetch('/create');
-  }, [router]);
 
   // Read contract count
   const { data: agreementCountData } = useReadContract({
@@ -49,6 +47,15 @@ export default function App() {
 
   const agreementCount = agreementCountData ? Number(agreementCountData) : 0;
   const agreementIds = Array.from({ length: agreementCount }, (_, i) => i);
+
+  // Prefetch create page on mount and track page view once we have count
+  useEffect(() => {
+    router.prefetch('/create');
+    trackPageView('home', {
+      agreement_count: agreementCount,
+      has_context: Boolean(context)
+    });
+  }, [router, trackPageView, agreementCount, context]);
 
   // Read all agreements
   const { data: agreementsData, isLoading } = useReadContracts({
@@ -116,7 +123,15 @@ export default function App() {
   const handleAddFrame = useCallback(async () => {
     const frameAdded = await addFrame();
     setFrameAdded(Boolean(frameAdded));
-  }, [addFrame]);
+    
+    // Track frame addition
+    if (frameAdded) {
+      trackFrameEvent(EVENTS.FRAME_ADDED, {
+        frame_action: 'added',
+        frame_url: window.location.href
+      });
+    }
+  }, [addFrame, trackFrameEvent]);
 
   const saveFrameButton = useMemo(() => {
     if (context && !context.client.added) {
@@ -164,7 +179,16 @@ export default function App() {
             <div className="text-center py-12">
               <p className="text-gray-100 text-lg mb-4">No debates yet</p>
               <button
-                onClick={() => router.push('/create')}
+                onClick={() => {
+                  trackDebateEvent(EVENTS.CREATE_PAGE_ACCESSED, {
+                    debate_id: '',
+                    debate_topic: '',
+                    creator: '',
+                    status: 'open',
+                    source: 'empty_state_button'
+                  });
+                  router.push('/create');
+                }}
                 className="bg-primary text-gray-1000 px-6 py-3 rounded-lg font-medium hover:bg-primary/90 transition-colors"
               >
                 Create the first debate
@@ -226,7 +250,17 @@ export default function App() {
                     creator={agreement.creator}
                     totalVolume={agreement.totalPoolA + agreement.totalPoolB}
                     timeRemaining={formatTimeRemaining(agreement.bettingEndTime)}
-                    onClick={() => router.push(`/agreement/${agreement.id}`)}
+                    onClick={() => {
+                      trackDebateEvent(EVENTS.DEBATE_CARD_CLICKED, {
+                        debate_id: agreement.id.toString(),
+                        debate_topic: agreement.topic,
+                        creator: agreement.creator,
+                        status: getStatusLabel(agreement.status) as "open" | "closed" | "resolved",
+                        total_volume: Number(agreement.totalPoolA + agreement.totalPoolB),
+                        time_remaining: formatTimeRemaining(agreement.bettingEndTime)
+                      });
+                      router.push(`/agreement/${agreement.id}`);
+                    }}
                   />
                 );
               })}
@@ -236,6 +270,13 @@ export default function App() {
           {/* Floating action button for mobile */}
           <button
             onClick={() => {
+              trackDebateEvent(EVENTS.FLOATING_BUTTON_CLICKED, {
+                debate_id: '',
+                debate_topic: '',
+                creator: '',
+                status: 'open',
+                source: 'floating_action_button'
+              });
               router.prefetch('/create');
               router.push('/create');
             }}

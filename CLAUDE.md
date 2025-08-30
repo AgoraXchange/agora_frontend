@@ -77,6 +77,8 @@ Critical environment variables that must be set:
 - `NEXT_PUBLIC_ONCHAINKIT_API_KEY` - OnchainKit API access
 - `NEXT_PUBLIC_URL` - Application URL for frame metadata
 - `REDIS_URL` & `REDIS_TOKEN` - Upstash Redis connection (required for notifications)
+ - `NEXT_PUBLIC_MIXPANEL_TOKEN` - Mixpanel project token for analytics (optional, analytics disabled if not set)
+ - `MIXPANEL_TOKEN` - Server-side Mixpanel token (optional; falls back to NEXT_PUBLIC_MIXPANEL_TOKEN)
 - Frame metadata variables (`FARCASTER_*`) - Generated via `npx create-onchain --manifest`
 
 ### TypeScript Configuration

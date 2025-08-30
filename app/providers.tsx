@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MiniKitProvider } from "@coinbase/onchainkit/minikit";
 import { OnchainKitProvider } from "@coinbase/onchainkit";
 import { coinbaseWallet } from "wagmi/connectors";
+import { AnalyticsProvider } from "@/components/AnalyticsProvider";
 
 // Create query client
 const queryClient = new QueryClient();
@@ -55,7 +56,9 @@ export function Providers(props: { children: ReactNode }) {
               },
             }}
           >
-            {props.children}
+            <AnalyticsProvider>
+              {props.children}
+            </AnalyticsProvider>
           </MiniKitProvider>
         </OnchainKitProvider>
       </QueryClientProvider>
