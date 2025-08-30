@@ -44,7 +44,6 @@ export async function trackServerEvent(
       },
       body: `data=${encodeURIComponent(data)}`,
       // Avoid blocking the response for too long
-      // @ts-ignore - Next.js runtime may not support this option typing
       cache: "no-store",
     });
 

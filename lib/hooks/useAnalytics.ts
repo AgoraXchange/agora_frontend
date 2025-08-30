@@ -120,9 +120,8 @@ export const useAnalytics = () => {
       identify(context.user.fid.toString(), {
         fid: context.user.fid,
         username: context.user.username,
-        display_name: context.user.display_name,
-        pfp_url: context.user.pfp_url,
-        client_name: context.client?.name,
+        display_name: context.user.displayName,
+        pfp_url: context.user.pfpUrl,
         frame_added: context.client?.added
       });
     }

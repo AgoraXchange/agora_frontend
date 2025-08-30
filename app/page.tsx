@@ -184,8 +184,7 @@ export default function App() {
                     debate_id: '',
                     debate_topic: '',
                     creator: '',
-                    status: 'open',
-                    source: 'empty_state_button'
+                    status: 'open'
                   });
                   router.push('/create');
                 }}
@@ -274,8 +273,7 @@ export default function App() {
                 debate_id: '',
                 debate_topic: '',
                 creator: '',
-                status: 'open',
-                source: 'floating_action_button'
+                status: 'open'
               });
               router.prefetch('/create');
               router.push('/create');

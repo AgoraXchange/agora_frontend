@@ -47,7 +47,6 @@ export function AnalyticsProvider({ children }: AnalyticsProviderProps) {
       track(EVENTS.FRAME_READY, {
         context_available: Boolean(context),
         user_fid: context?.user?.fid,
-        client_name: context?.client?.name,
         frame_added: context?.client?.added
       });
     }

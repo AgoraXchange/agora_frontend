@@ -14,7 +14,7 @@ interface ResultSectionProps {
   winnerArguments?: WinnerArguments | null;
 }
 
-export function ResultSection({ partyA, partyB, winner, winnerArguments }: ResultSectionProps) {
+export function ResultSection({ winnerArguments }: ResultSectionProps) {
   return (
     <div className="mb-8">
       <h2 className="text-white text-xl font-bold mb-1">Result</h2>
