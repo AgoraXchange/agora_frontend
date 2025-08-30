@@ -5,6 +5,8 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagm
 import { parseEther } from "viem";
 import { AGREEMENT_FACTORY_ADDRESS, AGREEMENT_FACTORY_ABI } from "@/lib/agreementFactoryABI";
 import { useRouter } from "next/navigation";
+import { useAnalytics } from "@/lib/hooks/useAnalytics";
+import { EVENTS } from "@/lib/analytics";
 
 export function CreateAgreement() {
   const { address, isConnected } = useAccount();
@@ -23,6 +25,7 @@ export function CreateAgreement() {
   }, []);
 
   const { writeContract, data: hash, isPending, error } = useWriteContract();
+  const { trackDebateEvent, trackPageView } = useAnalytics();
 
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
     hash,
@@ -32,8 +35,15 @@ export function CreateAgreement() {
   useEffect(() => {
     if (hash) {
       console.log("Transaction submitted:", hash);
+      // Track transaction initiated for contract creation
+      trackDebateEvent(EVENTS.TRANSACTION_INITIATED, {
+        debate_id: "",
+        debate_topic: topic,
+        creator: address || "",
+        status: "open",
+      });
     }
-  }, [hash]);
+  }, [hash, address, topic, trackDebateEvent]);
 
   useEffect(() => {
     if (isConfirming) {
@@ -45,14 +55,34 @@ export function CreateAgreement() {
     if (isSuccess) {
       console.log("Contract created successfully!");
       setShowSuccessModal(true);
+      // Track debate created and transaction completed
+      trackDebateEvent(EVENTS.DEBATE_CREATED, {
+        debate_id: "",
+        debate_topic: topic,
+        creator: address || "",
+        status: "open",
+      });
+      trackDebateEvent(EVENTS.TRANSACTION_COMPLETED, {
+        debate_id: "",
+        debate_topic: topic,
+        creator: address || "",
+        status: "open",
+      });
     }
-  }, [isSuccess]);
+  }, [isSuccess, trackDebateEvent, topic, address]);
 
   useEffect(() => {
     if (error) {
       console.error("Contract creation error:", error);
+      // Track transaction failed
+      trackDebateEvent(EVENTS.TRANSACTION_FAILED, {
+        debate_id: "",
+        debate_topic: topic,
+        creator: address || "",
+        status: "open",
+      });
     }
-  }, [error]);
+  }, [error, trackDebateEvent, topic, address]);
 
   const handleSuccessModalClose = () => {
     setShowSuccessModal(false);
@@ -71,6 +101,8 @@ export function CreateAgreement() {
     }
 
     try {
+      // Track create button click (page view again optional)
+      trackPageView('create_submit');
       writeContract({
         address: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
         abi: AGREEMENT_FACTORY_ABI,
@@ -88,7 +120,7 @@ export function CreateAgreement() {
     } catch (err) {
       console.error("Error creating contract:", err);
     }
-  }, [isConnected, address, writeContract, topic, description, partyA, partyB]);
+  }, [isConnected, address, writeContract, topic, description, partyA, partyB, trackPageView]);
 
   if (!isReady) {
     return (

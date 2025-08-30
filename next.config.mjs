@@ -6,6 +6,14 @@ const nextConfig = {
     config.externals.push("pino-pretty", "lokijs", "encoding");
     return config;
   },
+  async rewrites() {
+    return [
+      {
+        source: "/mp/:path*",
+        destination: "https://api.mixpanel.com/:path*",
+      },
+    ];
+  },
 };
 
 export default nextConfig;

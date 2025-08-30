@@ -5,16 +5,20 @@ import { useMiniKit } from "@coinbase/onchainkit/minikit";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useAnalytics } from "@/lib/hooks/useAnalytics";
 
 export default function CreatePage() {
   const { setFrameReady, isFrameReady } = useMiniKit();
   const router = useRouter();
+  const { trackPageView } = useAnalytics();
 
   useEffect(() => {
     if (!isFrameReady) {
       setFrameReady();
     }
-  }, [setFrameReady, isFrameReady]);
+    // Track create page view
+    trackPageView('create');
+  }, [setFrameReady, isFrameReady, trackPageView]);
 
   return (
     <div className="min-h-screen bg-gray-1000">

@@ -68,6 +68,23 @@ REDIS_TOKEN=
 npm run dev
 ```
 
+### Analytics (Mixpanel)
+
+Client-side analytics is initialized, but is disabled by default in development. To test events locally, add the following to `.env.local` and restart the dev server:
+
+```
+NEXT_PUBLIC_ENABLE_ANALYTICS_DEV=true
+NEXT_PUBLIC_MIXPANEL_TOKEN=YOUR_MIXPANEL_PROJECT_TOKEN
+```
+
+For server-side webhook analytics (frame added/removed, notifications enabled/disabled), you can optionally set a server token:
+
+```
+MIXPANEL_TOKEN=YOUR_MIXPANEL_SERVER_TOKEN
+```
+
+Client events are proxied through Next.js at `/mp/*` to avoid CORS/adblock issues.
+
 ## Template Features
 
 ### Frame Configuration

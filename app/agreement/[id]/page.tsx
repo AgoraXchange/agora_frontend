@@ -12,6 +12,8 @@ import { LiveDebateCard } from "@/components/LiveDebateCard";
 import { LiveDebateBottomSheet } from "@/components/LiveDebateBottomSheet";
 import { BetModal } from "@/components/BetModal";
 import type { Comment, Contract } from "@/types/contract";
+import { useAnalytics } from "@/lib/hooks/useAnalytics";
+import { EVENTS } from "@/lib/analytics";
 
 export default function AgreementDetailPage() {
   const params = useParams();
@@ -24,6 +26,8 @@ export default function AgreementDetailPage() {
   const [showLiveDebate, setShowLiveDebate] = useState(false);
   const [selectedSide, setSelectedSide] = useState<1 | 2 | null>(null);
   const [betAmount, setBetAmount] = useState("0.001");
+  const [lastAction, setLastAction] = useState<"bet" | "comment" | null>(null);
+  const { trackDebateEvent, trackBetEvent, trackPageView } = useAnalytics();
   
   // Contract data
   const { data: contractData, refetch: refetchContract } = useReadContract({
@@ -67,6 +71,33 @@ export default function AgreementDetailPage() {
 
   useEffect(() => {
     if (isSuccess) {
+      // Track transaction completed for last action
+      if (lastAction === "bet") {
+        trackBetEvent(EVENTS.TRANSACTION_COMPLETED, {
+          debate_id: String(contractId),
+          side: selectedSide === 1 ? "A" : "B",
+          amount: parseFloat(betAmount),
+        });
+        trackBetEvent(EVENTS.BET_PLACED, {
+          debate_id: String(contractId),
+          side: selectedSide === 1 ? "A" : "B",
+          amount: parseFloat(betAmount),
+        });
+      } else if (lastAction === "comment") {
+        trackDebateEvent(EVENTS.TRANSACTION_COMPLETED, {
+          debate_id: String(contractId),
+          debate_topic: contract?.topic || "",
+          creator: contract?.creator || "",
+          status: (contract?.status === 0 ? "open" : contract?.status === 1 ? "closed" : "resolved"),
+        });
+        trackDebateEvent(EVENTS.COMMENT_POSTED, {
+          debate_id: String(contractId),
+          debate_topic: contract?.topic || "",
+          creator: contract?.creator || "",
+          status: (contract?.status === 0 ? "open" : contract?.status === 1 ? "closed" : "resolved"),
+        });
+      }
+
       refetchContract();
       refetchComments();
       refetchUserBet();
@@ -74,8 +105,27 @@ export default function AgreementDetailPage() {
       setSelectedSide(null);
       setBetAmount("0.001");
       setComment("");
+      setLastAction(null);
     }
-  }, [isSuccess, refetchContract, refetchComments, refetchUserBet]);
+  }, [isSuccess, refetchContract, refetchComments, refetchUserBet, lastAction, trackBetEvent, trackDebateEvent, contract?.topic, contract?.creator, contract?.status, betAmount, selectedSide, contractId]);
+
+  // Track page view when contract data becomes available
+  useEffect(() => {
+    if (contractData) {
+      const c = contractData as Contract;
+      trackPageView('agreement_detail', {
+        debate_id: String(contractId),
+        debate_topic: c.topic,
+        status: (c.status === 0 ? 'open' : c.status === 1 ? 'closed' : 'resolved'),
+      });
+      trackDebateEvent(EVENTS.AGREEMENT_PAGE_ACCESSED, {
+        debate_id: String(contractId),
+        debate_topic: c.topic,
+        creator: c.creator,
+        status: (c.status === 0 ? 'open' : c.status === 1 ? 'closed' : 'resolved'),
+      });
+    }
+  }, [contractData, contractId, trackPageView, trackDebateEvent]);
 
   // Calculate odds
   const calculateOdds = (sidePool: bigint, loserPool: bigint) => {
@@ -97,6 +147,13 @@ export default function AgreementDetailPage() {
     
     try {
       const amount = parseEther(betAmount);
+      setLastAction("bet");
+      // Track transaction initiated
+      trackBetEvent(EVENTS.TRANSACTION_INITIATED, {
+        debate_id: String(contractId),
+        side: selectedSide === 1 ? "A" : "B",
+        amount: parseFloat(betAmount),
+      });
       
       writeContract({
         address: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
@@ -107,6 +164,11 @@ export default function AgreementDetailPage() {
       });
     } catch (err) {
       console.error("Error placing bet:", err);
+      trackBetEvent(EVENTS.TRANSACTION_FAILED, {
+        debate_id: String(contractId),
+        side: selectedSide === 1 ? "A" : "B",
+        amount: parseFloat(betAmount),
+      });
     }
   };
 
@@ -115,6 +177,14 @@ export default function AgreementDetailPage() {
     if (!comment.trim() || !isConnected) return;
     
     try {
+      setLastAction("comment");
+      // Track transaction initiated for comment
+      trackDebateEvent(EVENTS.TRANSACTION_INITIATED, {
+        debate_id: String(contractId),
+        debate_topic: contract?.topic || "",
+        creator: contract?.creator || "",
+        status: (contract?.status === 0 ? "open" : contract?.status === 1 ? "closed" : "resolved"),
+      });
       writeContract({
         address: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
         abi: AGREEMENT_FACTORY_ABI,
@@ -123,6 +193,12 @@ export default function AgreementDetailPage() {
       });
     } catch (err) {
       console.error("Error adding comment:", err);
+      trackDebateEvent(EVENTS.TRANSACTION_FAILED, {
+        debate_id: String(contractId),
+        debate_topic: contract?.topic || "",
+        creator: contract?.creator || "",
+        status: (contract?.status === 0 ? "open" : contract?.status === 1 ? "closed" : "resolved"),
+      });
     }
   };
 
@@ -207,7 +283,14 @@ export default function AgreementDetailPage() {
         {/* Bet Button */}
         {isConnected && contract.status === 0 && (
           <button
-            onClick={() => setShowBetModal(true)}
+            onClick={() => {
+              trackBetEvent(EVENTS.TRANSACTION_INITIATED, {
+                debate_id: String(contractId),
+                side: selectedSide === 1 ? "A" : selectedSide === 2 ? "B" : undefined,
+                amount: parseFloat(betAmount) || 0,
+              });
+              setShowBetModal(true);
+            }}
             className="w-full bg-primary text-gray-1000 py-4 rounded-xl font-bold text-lg hover:bg-primary/90 transition-colors mb-8"
           >
             Bet
@@ -218,7 +301,16 @@ export default function AgreementDetailPage() {
         <LiveDebateCard 
           commentsCount={comments.length}
           latestComment={comments.length > 0 ? comments[0] : undefined}
-          onClick={() => setShowLiveDebate(true)}
+          onClick={() => {
+            trackDebateEvent(EVENTS.DEBATE_VIEWED, {
+              debate_id: String(contractId),
+              debate_topic: contract?.topic || "",
+              creator: contract?.creator || "",
+              status: (contract?.status === 0 ? "open" : contract?.status === 1 ? "closed" : "resolved"),
+              time_remaining: "live_debate_panel",
+            });
+            setShowLiveDebate(true);
+          }}
         />
 
       </div>
@@ -308,7 +400,14 @@ export default function AgreementDetailPage() {
         comment={comment}
         setComment={setComment}
         onSubmitComment={handleComment}
-        onBetClick={() => setShowBetModal(true)}
+        onBetClick={() => {
+          trackBetEvent(EVENTS.TRANSACTION_INITIATED, {
+            debate_id: String(contractId),
+            side: selectedSide === 1 ? "A" : selectedSide === 2 ? "B" : undefined,
+            amount: parseFloat(betAmount) || 0,
+          });
+          setShowBetModal(true);
+        }}
         isPending={isPending}
         isConfirming={isConfirming}
         hasBet={!!hasUserBet}
@@ -324,6 +423,13 @@ export default function AgreementDetailPage() {
         oddsB={oddsB}
         selectedSide={selectedSide}
         setSelectedSide={setSelectedSide}
+        onSideSelect={(side) => {
+          trackBetEvent(EVENTS.TRANSACTION_INITIATED, {
+            debate_id: String(contractId),
+            side: side === 1 ? "A" : "B",
+            amount: parseFloat(betAmount) || 0,
+          });
+        }}
         betAmount={betAmount}
         setBetAmount={setBetAmount}
         onBet={handleBet}
