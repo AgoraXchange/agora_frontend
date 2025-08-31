@@ -1,15 +1,20 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain, useChainId } from "wagmi";
 import { parseEther } from "viem";
+import { baseSepolia } from "wagmi/chains";
 import { AGREEMENT_FACTORY_ADDRESS, AGREEMENT_FACTORY_ABI } from "@/lib/agreementFactoryABI";
 import { useRouter } from "next/navigation";
 import { useAnalytics } from "@/lib/hooks/useAnalytics";
 import { EVENTS } from "@/lib/analytics";
+import { useEnsureChain } from "@/lib/hooks/useEnsureChain";
 
 export function CreateAgreement() {
   const { address, isConnected } = useAccount();
+  const chainId = useChainId();
+  const { switchChain } = useSwitchChain();
+  useEnsureChain(); // Auto switch to Base Sepolia
   const router = useRouter();
   const [topic, setTopic] = useState("");
   const [description, setDescription] = useState("");
@@ -89,7 +94,7 @@ export function CreateAgreement() {
     router.push('/');  // Navigate to home page instead of using back()
   };
 
-  const handleCreateContract = useCallback(() => {
+  const handleCreateContract = useCallback(async () => {
     if (!isConnected || !address) {
       alert("Please connect your wallet first");
       return;
@@ -101,6 +106,11 @@ export function CreateAgreement() {
     }
 
     try {
+      // Switch to Base Sepolia if not on the right chain
+      if (chainId !== baseSepolia.id) {
+        await switchChain({ chainId: baseSepolia.id });
+      }
+      
       // Track create button click (page view again optional)
       trackPageView('create_submit');
       writeContract({
@@ -116,11 +126,12 @@ export function CreateAgreement() {
           parseEther("0.001"), // Fixed min bet
           parseEther("0.1") // Fixed max bet
         ],
+        chainId: baseSepolia.id,
       });
     } catch (err) {
       console.error("Error creating contract:", err);
     }
-  }, [isConnected, address, writeContract, topic, description, partyA, partyB, trackPageView]);
+  }, [isConnected, address, writeContract, topic, description, partyA, partyB, trackPageView, chainId, switchChain]);
 
   if (!isReady) {
     return (

@@ -20,6 +20,7 @@ const wagmiConfig = createConfig({
       appName: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME || "Agora",
       appLogoUrl: process.env.NEXT_PUBLIC_ICON_URL,
       preference: "smartWalletOnly",
+      chainId: baseSepolia.id, // Explicitly set Base Sepolia chain ID
     }),
   ],
   transports: {
@@ -35,6 +36,7 @@ export function Providers(props: { children: ReactNode }) {
         <OnchainKitProvider
           apiKey={process.env.NEXT_PUBLIC_ONCHAINKIT_API_KEY}
           chain={baseSepolia}
+          rpcUrl="https://sepolia.base.org"
           config={{
             appearance: {
               mode: "dark",

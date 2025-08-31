@@ -2,8 +2,9 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useSwitchChain, useChainId } from "wagmi";
 import { parseEther } from "viem";
+import { baseSepolia } from "wagmi/chains";
 import { AGREEMENT_FACTORY_ADDRESS, AGREEMENT_FACTORY_ABI } from "@/lib/agreementFactoryABI";
 import { BettingOptions } from "@/components/BettingOptions";
 import { CountdownTimer } from "@/components/CountdownTimer";
@@ -14,6 +15,7 @@ import { BetModal } from "@/components/BetModal";
 import type { Comment, Contract } from "@/types/contract";
 import { useAnalytics } from "@/lib/hooks/useAnalytics";
 import { EVENTS } from "@/lib/analytics";
+import { useEnsureChain } from "@/lib/hooks/useEnsureChain";
 
 export default function AgreementDetailPage() {
   const params = useParams();
@@ -21,6 +23,9 @@ export default function AgreementDetailPage() {
   const contractId = parseInt(params.id as string);
   
   const { isConnected, address } = useAccount();
+  const chainId = useChainId();
+  const { switchChain } = useSwitchChain();
+  useEnsureChain(); // Auto switch to Base Sepolia
   const [comment, setComment] = useState("");
   const [showBetModal, setShowBetModal] = useState(false);
   const [showLiveDebate, setShowLiveDebate] = useState(false);
@@ -188,6 +193,11 @@ export default function AgreementDetailPage() {
     if (!selectedSide || !betAmount || !isConnected) return;
     
     try {
+      // Switch to Base Sepolia if not on the right chain
+      if (chainId !== baseSepolia.id) {
+        await switchChain({ chainId: baseSepolia.id });
+      }
+      
       const amount = parseEther(betAmount);
       setLastAction("bet");
       // Track transaction initiated
@@ -203,6 +213,7 @@ export default function AgreementDetailPage() {
         functionName: "simpleBet",
         args: [BigInt(contractId), selectedSide],
         value: amount,
+        chainId: baseSepolia.id,
       });
     } catch (err) {
       console.error("Error placing bet:", err);
@@ -219,6 +230,11 @@ export default function AgreementDetailPage() {
     if (!comment.trim() || !isConnected) return;
     
     try {
+      // Switch to Base Sepolia if not on the right chain
+      if (chainId !== baseSepolia.id) {
+        await switchChain({ chainId: baseSepolia.id });
+      }
+      
       setLastAction("comment");
       // Track transaction initiated for comment
       trackDebateEvent(EVENTS.TRANSACTION_INITIATED, {
@@ -232,6 +248,7 @@ export default function AgreementDetailPage() {
         abi: AGREEMENT_FACTORY_ABI,
         functionName: "addComment",
         args: [BigInt(contractId), comment.trim()],
+        chainId: baseSepolia.id,
       });
     } catch (err) {
       console.error("Error adding comment:", err);
