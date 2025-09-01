@@ -23,7 +23,7 @@ interface AnalyticsProviderProps {
 
 export function AnalyticsProvider({ children }: AnalyticsProviderProps) {
   const { context, isFrameReady } = useMiniKit();
-  const { track, autoIdentify } = useAnalytics();
+  const { track } = useAnalytics();
 
   useEffect(() => {
     // Initialize Mixpanel when the component mounts
@@ -53,12 +53,7 @@ export function AnalyticsProvider({ children }: AnalyticsProviderProps) {
     }
   }, [isFrameReady, track, context]);
 
-  useEffect(() => {
-    // Auto-identify user when context becomes available
-    if (context && isAnalyticsEnabled()) {
-      autoIdentify();
-    }
-  }, [context, autoIdentify]);
+  // Identification is handled on wallet connect in WalletAnalytics.
 
   const contextValue: AnalyticsContextType = {
     isEnabled: isAnalyticsEnabled(),

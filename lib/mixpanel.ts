@@ -1,6 +1,11 @@
 import mixpanel from 'mixpanel-browser';
 
 const MIXPANEL_TOKEN = process.env.NEXT_PUBLIC_MIXPANEL_TOKEN;
+const MIXPANEL_API_HOST = process.env.NEXT_PUBLIC_MIXPANEL_API_HOST; // e.g. https://api-eu.mixpanel.com
+const DISABLE_IP = process.env.NEXT_PUBLIC_MIXPANEL_DISABLE_IP === 'true';
+const ENABLE_DEV = process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_DEV === 'true';
+const DEFAULT_OPT_IN = process.env.NEXT_PUBLIC_ANALYTICS_DEFAULT_OPT_IN === 'true';
+const CONSENT_KEY = 'agora:analytics-consent';
 
 let isInitialized = false;
 
@@ -17,12 +22,23 @@ export const initMixpanel = () => {
   try {
     mixpanel.init(MIXPANEL_TOKEN, {
       debug: process.env.NODE_ENV === 'development',
-      track_pageview: false, // We'll track page views manually
+      autocapture: false,
       persistence: 'localStorage',
-      api_host: '/mp', // Use proxy to avoid CORS issues
+      // Prefer explicit API host if provided (EU/IN residency); otherwise proxy path
+      api_host: MIXPANEL_API_HOST || '/mp',
+      ip: DISABLE_IP ? false : undefined,
+      opt_out_tracking_by_default: true,
       loaded: () => {
+        // Respect saved consent; optionally opt-in by default in dev/previews
+        try {
+          const saved = typeof window !== 'undefined' ? window.localStorage.getItem(CONSENT_KEY) : null;
+          if (saved === 'true' || (!saved && DEFAULT_OPT_IN && process.env.NODE_ENV !== 'production')) {
+            mixpanel.opt_in_tracking();
+            if (typeof window !== 'undefined') window.localStorage.setItem(CONSENT_KEY, 'true');
+          }
+        } catch {}
         console.log('Mixpanel initialized successfully');
-      }
+      },
     });
 
     isInitialized = true;
@@ -41,6 +57,47 @@ export const getMixpanel = () => {
 };
 
 export const isAnalyticsEnabled = () => {
-  const enableDev = process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_DEV === 'true';
-  return Boolean(MIXPANEL_TOKEN) && (process.env.NODE_ENV === 'production' || enableDev);
+  return Boolean(MIXPANEL_TOKEN) && (process.env.NODE_ENV === 'production' || ENABLE_DEV);
+};
+
+export const registerSuperProperties = (props: Record<string, unknown>) => {
+  const mp = getMixpanel();
+  if (!mp) return;
+  try {
+    mp.register(props);
+  } catch (e) {
+    console.error('Mixpanel register error:', e);
+  }
+};
+
+export const resetAnalytics = () => {
+  const mp = getMixpanel();
+  if (!mp) return;
+  try {
+    mp.reset();
+  } catch (e) {
+    console.error('Mixpanel reset error:', e);
+  }
+};
+
+export const optInAnalytics = () => {
+  const mp = getMixpanel();
+  if (!mp) return;
+  try {
+    mp.opt_in_tracking();
+    if (typeof window !== 'undefined') window.localStorage.setItem(CONSENT_KEY, 'true');
+  } catch (e) {
+    console.error('Mixpanel opt-in error:', e);
+  }
+};
+
+export const optOutAnalytics = () => {
+  const mp = getMixpanel();
+  if (!mp) return;
+  try {
+    mp.opt_out_tracking();
+    if (typeof window !== 'undefined') window.localStorage.setItem(CONSENT_KEY, 'false');
+  } catch (e) {
+    console.error('Mixpanel opt-out error:', e);
+  }
 };
