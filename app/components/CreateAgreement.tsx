@@ -125,6 +125,7 @@ export function CreateAgreement() {
           parseEther("0.001"), // Fixed min bet
           parseEther("0.1") // Fixed max bet
         ],
+        chainId: 84532, // Explicitly specify Base Sepolia chain ID
       });
     } catch (err) {
       console.error("Error creating contract:", err);

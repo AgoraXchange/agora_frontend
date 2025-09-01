@@ -19,13 +19,16 @@ const wagmiConfig = createConfig({
     coinbaseWallet({
       appName: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME || "Agora",
       appLogoUrl: process.env.NEXT_PUBLIC_ICON_URL,
-      preference: "smartWalletOnly",
+      preference: {
+        options: "smartWalletOnly"
+      },
       chainId: baseSepolia.id, // Explicitly set Base Sepolia chain ID
     }),
   ],
   transports: {
     [baseSepolia.id]: http("https://sepolia.base.org"),
   },
+  syncConnectedChain: true, // Force chain synchronization with wallet
   ssr: false,
 });
 

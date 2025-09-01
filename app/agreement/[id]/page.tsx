@@ -212,6 +212,7 @@ export default function AgreementDetailPage() {
         functionName: "simpleBet",
         args: [BigInt(contractId), selectedSide],
         value: amount,
+        chainId: 84532, // Explicitly specify Base Sepolia chain ID
       });
     } catch (err) {
       console.error("Error placing bet:", err);
@@ -260,6 +261,7 @@ export default function AgreementDetailPage() {
         abi: AGREEMENT_FACTORY_ABI,
         functionName: "addComment",
         args: [BigInt(contractId), comment.trim()],
+        chainId: 84532, // Explicitly specify Base Sepolia chain ID
       });
     } catch (err) {
       console.error("Error adding comment:", err);
