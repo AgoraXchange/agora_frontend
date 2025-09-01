@@ -1,0 +1,35 @@
+{
+    "accountAssociation": {
+      "header": "eyJmaWQiOjkxNTIsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHgwMmVmNzkwRGQ3OTkzQTM1ZkQ4NDdDMDUzRURkQUU5NDBEMDU1NTk2In0",
+      "payload": "eyJkb21haW4iOiJhcHAuZXhhbXBsZS5jb20ifQ",
+      "signature": "MHgxMGQwZGU4ZGYwZDUwZTdmMGIxN2YxMTU2NDI1MjRmZTY0MTUyZGU4ZGU1MWU0MThiYjU4ZjVmZmQxYjRjNDBiNGVlZTRhNDcwNmVmNjhlMzQ0ZGQ5MDBkYmQyMmNlMmVlZGY5ZGQ0N2JlNWRmNzMwYzUxNjE4OWVjZDJjY2Y0MDFj"
+    },
+    "baseBuilder": {
+      "allowedAddresses": ["0x19195e012B788E9354c159FB30bFe366a8990C59"]
+    },
+    "frame": {
+      "version": "1",
+      "name": "Agora",
+      "homeUrl": "https://agora-6krc1xfcv-agora-colosseum.vercel.app",
+      "iconUrl": "https://agora-6krc1xfcv-agora-colosseum.vercel.app/i.png",
+      "splashImageUrl": "https://agora-6krc1xfcv-agora-colosseum.vercel.app/l.png",
+      "splashBackgroundColor": "#000000",
+      "webhookUrl": "https://agora-6krc1xfcv-agora-colosseum.vercel.app/api/webhook",
+      "subtitle": "The Onchain Colosseum",
+      "description": "The Sharpest minds wins, The tresure is yours.",
+      "screenshotUrls": [
+        "https://agora-6krc1xfcv-agora-colosseum.vercel.app/s1.png",
+        "https://agora-6krc1xfcv-agora-colosseum.vercel.app/s2.png",
+        "https://agora-6krc1xfcv-agora-colosseum.vercel.app/s3.png"
+      ],
+      "primaryCategory": "social",
+      "tags": ["agora", "miniapp", "baseapp"],
+      "heroImageUrl": "https://agora-6krc1xfcv-agora-colosseum.vercel.app/og.png",
+      "tagline": "Play instantly",
+      "ogTitle": "Agora",
+      "ogDescription": "The Sharpest minds wins, The tresure is yours.",
+      "ogImageUrl": "https://agora-6krc1xfcv-agora-colosseum.vercel.app/og.png",
+      "noindex": true,
+      "requiredChains": ["eip155:84532"]
+    }
+  }
