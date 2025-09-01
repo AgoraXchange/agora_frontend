@@ -37,38 +37,33 @@ export function isBaseSepolia(chainId: number | undefined): boolean {
 
 /**
  * Get network name by chain ID
+ * This app only supports Base Sepolia
  */
 export function getNetworkName(chainId: number | undefined): string {
   if (!chainId) return 'Unknown Network';
   
   switch (chainId) {
-    case 1:
-      return 'Ethereum Mainnet';
-    case 5:
-      return 'Goerli Testnet';
-    case 11155111:
-      return 'Sepolia Testnet';
-    case 8453:
-      return 'Base Mainnet';
     case 84532:
       return 'Base Sepolia';
-    case 137:
-      return 'Polygon';
-    case 80001:
-      return 'Polygon Mumbai';
+    // Legacy support for display purposes only - app doesn't support these networks
+    case 1:
+      return 'Ethereum Mainnet (Unsupported)';
+    case 8453:
+      return 'Base Mainnet (Unsupported)';
     default:
-      return `Chain ${chainId}`;
+      return `Unsupported Network ${chainId}`;
   }
 }
 
 /**
  * Check if a network is a testnet
+ * This app only supports Base Sepolia (testnet)
  */
 export function isTestnet(chainId: number | undefined): boolean {
   if (!chainId) return false;
   
-  const testnets = [5, 11155111, 84532, 80001]; // Goerli, Sepolia, Base Sepolia, Polygon Mumbai
-  return testnets.includes(chainId);
+  // Only Base Sepolia is supported as the testnet
+  return chainId === 84532;
 }
 
 /**
@@ -89,28 +84,22 @@ export function getNetworkStatusColor(chainId: number | undefined): string {
 }
 
 /**
- * Get short network name for mobile display (to distinguish Base networks)
+ * Get short network name for mobile display
+ * This app only supports Base Sepolia
  */
 export function getNetworkShortName(chainId: number | undefined): string {
   if (!chainId) return 'Unknown';
   
   switch (chainId) {
-    case 1:
-      return 'ETH';
-    case 5:
-      return 'Goerli';
-    case 11155111:
-      return 'Sepolia';
-    case 8453:
-      return 'Base';
     case 84532:
-      return 'Sepolia'; // Base Sepolia shows as "Sepolia" to distinguish from Base mainnet
-    case 137:
-      return 'Polygon';
-    case 80001:
-      return 'Mumbai';
+      return 'Sepolia'; // Base Sepolia
+    // Legacy support for display only - not supported
+    case 8453:
+      return 'Base (Unsupported)';
+    case 1:
+      return 'ETH (Unsupported)';
     default:
-      return `Chain ${chainId}`;
+      return `Unsupported ${chainId}`;
   }
 }
 

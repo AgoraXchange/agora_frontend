@@ -13,6 +13,7 @@ function withValidProperties(
 
 export async function GET() {
   const URL = process.env.NEXT_PUBLIC_URL;
+  const chainId = process.env.NEXT_PUBLIC_REQUIRED_CHAIN_ID || "84532";
 
   return Response.json({
     accountAssociation: {
@@ -40,10 +41,10 @@ export async function GET() {
       ogTitle: process.env.NEXT_PUBLIC_APP_OG_TITLE,
       ogDescription: process.env.NEXT_PUBLIC_APP_OG_DESCRIPTION,
       ogImageUrl: process.env.NEXT_PUBLIC_APP_OG_IMAGE,
-      requiredChains: ["eip155:84532"],
+      requiredChains: [`eip155:${chainId}`],
     }),
     baseBuilder: {
-      allowedAddresses: ["0xb4bF841108Cbb79c1d0Cf4013d44c610b0DA93E1"]
+      allowedAddresses: ["0x19195e012B788E9354c159FB30bFe366a8990C59"]
     },
   });
 }
