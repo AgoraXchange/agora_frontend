@@ -14,7 +14,7 @@ import { base } from "wagmi/chains";
 import { useAccount, useChainId } from "wagmi";
 import { useEnsureChain } from "@/lib/hooks/useEnsureChain";
 import { NetworkSwitchModal } from "./NetworkSwitchModal";
-import { getNetworkName, getNetworkStatusColor, isBaseSepolia } from "@/lib/utils/network";
+import { getNetworkName, getNetworkStatusColor, getNetworkShortName, isBaseSepolia } from "@/lib/utils/network";
 
 interface HeaderProps {
   saveFrameButton?: React.ReactNode;
@@ -51,9 +51,9 @@ export function Header({ saveFrameButton }: HeaderProps) {
                     <span className={`hidden sm:inline text-xs font-medium ${getNetworkStatusColor(chainId)} whitespace-nowrap`}>
                       {getNetworkName(chainId)}
                     </span>
-                    {/* Mobile: Show only first word of network name */}
+                    {/* Mobile: Show distinct short name to distinguish Base networks */}
                     <span className={`sm:hidden text-xs font-medium ${getNetworkStatusColor(chainId)}`}>
-                      {getNetworkName(chainId).split(' ')[0]}
+                      {getNetworkShortName(chainId)}
                     </span>
                   </div>
                   

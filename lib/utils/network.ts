@@ -89,6 +89,32 @@ export function getNetworkStatusColor(chainId: number | undefined): string {
 }
 
 /**
+ * Get short network name for mobile display (to distinguish Base networks)
+ */
+export function getNetworkShortName(chainId: number | undefined): string {
+  if (!chainId) return 'Unknown';
+  
+  switch (chainId) {
+    case 1:
+      return 'ETH';
+    case 5:
+      return 'Goerli';
+    case 11155111:
+      return 'Sepolia';
+    case 8453:
+      return 'Base';
+    case 84532:
+      return 'Sepolia'; // Base Sepolia shows as "Sepolia" to distinguish from Base mainnet
+    case 137:
+      return 'Polygon';
+    case 80001:
+      return 'Mumbai';
+    default:
+      return `Chain ${chainId}`;
+  }
+}
+
+/**
  * Format chain ID for display (shows both decimal and hex)
  */
 export function formatChainId(chainId: number): string {
