@@ -9,6 +9,7 @@ interface EnsureChainState {
   needsSwitch: boolean;
   switchNetwork: () => void;
   resetError: () => void;
+  retrySwitch: () => void;
 }
 
 export function useEnsureChain(): EnsureChainState {
@@ -42,6 +43,11 @@ export function useEnsureChain(): EnsureChainState {
     setError(null);
   };
 
+  const retrySwitch = useCallback(async () => {
+    resetError();
+    await switchNetwork();
+  }, [switchNetwork]);
+
   // Auto-switch only once when component mounts and chain is detected
   useEffect(() => {
     if (needsSwitch && !autoSwitchAttempted && !isSwitching) {
@@ -71,6 +77,7 @@ export function useEnsureChain(): EnsureChainState {
     error,
     needsSwitch,
     switchNetwork,
-    resetError
+    resetError,
+    retrySwitch
   };
 }

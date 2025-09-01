@@ -23,7 +23,7 @@ interface HeaderProps {
 export function Header({ saveFrameButton }: HeaderProps) {
   const { address } = useAccount();
   const chainId = useChainId();
-  const { needsSwitch, switchNetwork, isSwitching, error, resetError } = useEnsureChain();
+  const { needsSwitch, switchNetwork, isSwitching, error, resetError, retrySwitch } = useEnsureChain();
   const [showNetworkModal, setShowNetworkModal] = useState(false);
   
   return (
@@ -103,6 +103,7 @@ export function Header({ saveFrameButton }: HeaderProps) {
         isSwitching={isSwitching}
         error={error}
         onResetError={resetError}
+        onRetrySwitch={retrySwitch}
       />
     </header>
   );
