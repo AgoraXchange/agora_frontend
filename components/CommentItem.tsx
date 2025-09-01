@@ -2,7 +2,7 @@
 
 import type { Comment } from "@/types/contract";
 import { Name } from "@coinbase/onchainkit/identity";
-import { base } from "wagmi/chains";
+import { baseSepolia } from "wagmi/chains";
 
 interface CommentItemProps {
   comment: Comment;
@@ -22,7 +22,7 @@ export function CommentItem({ comment }: CommentItemProps) {
         <div className="flex items-center gap-2 mb-2">
           <Name 
             address={comment.commenter as `0x${string}`}
-            chain={base}
+            chain={baseSepolia}
             className="text-white text-sm font-medium"
           />
         </div>

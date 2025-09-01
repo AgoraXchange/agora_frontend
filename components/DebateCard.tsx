@@ -2,7 +2,7 @@
 
 import { formatEther } from "viem";
 import { Name } from "@coinbase/onchainkit/identity";
-import { base } from "wagmi/chains";
+import { baseSepolia } from "wagmi/chains";
 
 interface DebateCardProps {
   id: string;
@@ -137,7 +137,7 @@ export function DebateCard({
             {creator ? (
               <Name 
                 address={creator as `0x${string}`}
-                chain={base}
+                chain={baseSepolia}
                 className="text-gray-100 text-xs"
               />
             ) : (

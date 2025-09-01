@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { baseSepolia } from "wagmi/chains";
 import { parseEther } from "viem";
 import { AGREEMENT_FACTORY_ADDRESS, AGREEMENT_FACTORY_ABI } from "@/lib/agreementFactoryABI";
 import { useRouter } from "next/navigation";
@@ -12,7 +13,7 @@ import { useToast } from "@/components/Toast";
 
 export function CreateAgreement() {
   const { address, isConnected } = useAccount();
-  const { isCorrectChain, isSwitching, needsSwitch, switchNetwork } = useEnsureChain(); // Auto switch to Base Sepolia
+  const { isCorrectChain, isSwitching, needsSwitch, ensureCorrectChain } = useEnsureChain(); // Auto switch to Base Sepolia
   const { showToast, ToastContainer } = useToast();
   const router = useRouter();
   const [topic, setTopic] = useState("");
@@ -106,8 +107,10 @@ export function CreateAgreement() {
 
     try {
       // Ensure we're on the correct chain before transaction
-      if (!isCorrectChain) {
-        await switchNetwork();
+      const ok = await ensureCorrectChain();
+      if (!ok) {
+        showToast("Please switch to Base Sepolia network first", "warning");
+        return;
       }
       
       // Track create button click (page view again optional)
@@ -125,6 +128,7 @@ export function CreateAgreement() {
           parseEther("0.001"), // Fixed min bet
           parseEther("0.1") // Fixed max bet
         ],
+        chainId: baseSepolia.id,
       });
     } catch (err) {
       console.error("Error creating contract:", err);
@@ -141,7 +145,7 @@ export function CreateAgreement() {
       // Show error toast for actual failures
       showToast("Failed to create contract. Please try again.", "error");
     }
-  }, [isConnected, address, writeContract, topic, description, partyA, partyB, trackPageView, switchNetwork, isCorrectChain, showToast]);
+  }, [isConnected, address, writeContract, topic, description, partyA, partyB, trackPageView, ensureCorrectChain, showToast]);
 
   if (!isReady) {
     return (

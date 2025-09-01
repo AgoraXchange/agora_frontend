@@ -21,9 +21,18 @@ interface AnalyticsProviderProps {
   children: ReactNode;
 }
 
+type LoggedInitRef = { current: boolean };
+
 export function AnalyticsProvider({ children }: AnalyticsProviderProps) {
   const { context, isFrameReady } = useMiniKit();
   const { track, autoIdentify } = useAnalytics();
+  // Prepare a global flag on window to avoid duplicate init logs in dev/StrictMode
+  if (typeof window !== 'undefined') {
+    const w = window as Window & { __agoraLoggedAnalyticsInitRef?: LoggedInitRef };
+    if (!w.__agoraLoggedAnalyticsInitRef) {
+      w.__agoraLoggedAnalyticsInitRef = { current: false };
+    }
+  }
 
   useEffect(() => {
     // Initialize Mixpanel when the component mounts
@@ -36,8 +45,14 @@ export function AnalyticsProvider({ children }: AnalyticsProviderProps) {
         has_context: Boolean(context),
         frame_ready: isFrameReady
       });
-
-      console.log('Analytics provider initialized');
+      if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+        const w = window as Window & { __agoraLoggedAnalyticsInitRef?: LoggedInitRef };
+        const ref = w.__agoraLoggedAnalyticsInitRef;
+        if (ref && !ref.current) {
+          console.log('Analytics provider initialized');
+          ref.current = true;
+        }
+      }
     }
   }, [track, context, isFrameReady]);
 

@@ -3,6 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { baseSepolia } from "wagmi/chains";
 import { parseEther } from "viem";
 import { AGREEMENT_FACTORY_ADDRESS, AGREEMENT_FACTORY_ABI } from "@/lib/agreementFactoryABI";
 import { BettingOptions } from "@/components/BettingOptions";
@@ -16,6 +17,7 @@ import { useAnalytics } from "@/lib/hooks/useAnalytics";
 import { EVENTS } from "@/lib/analytics";
 import { useEnsureChain } from "@/lib/hooks/useEnsureChain";
 import { useToast } from "@/components/Toast";
+import { ConnectWallet } from "@coinbase/onchainkit/wallet";
 
 export default function AgreementDetailPage() {
   const params = useParams();
@@ -23,7 +25,7 @@ export default function AgreementDetailPage() {
   const contractId = parseInt(params.id as string);
   
   const { isConnected, address } = useAccount();
-  const { isCorrectChain, isSwitching, needsSwitch, switchNetwork } = useEnsureChain(); // Auto switch to Base Sepolia
+  const { isCorrectChain, isSwitching, needsSwitch, ensureCorrectChain } = useEnsureChain(); // Auto switch to Base Sepolia
   const { showToast, ToastContainer } = useToast();
   const [comment, setComment] = useState("");
   const [showBetModal, setShowBetModal] = useState(false);
@@ -82,7 +84,6 @@ export default function AgreementDetailPage() {
   // Fetch winner arguments when contract is settled
   useEffect(() => {
     const fetchWinnerArguments = async () => {
-      console.log('🔍 Checking contract status:', contract?.status);
       if (contract && (contract.status === 1 || contract.status === 2 || contract.status === 3)) {
         console.log('📡 Fetching winner arguments for contract:', contractId);
         try {
@@ -107,8 +108,6 @@ export default function AgreementDetailPage() {
         } catch (error) {
           console.error('💥 Failed to fetch winner arguments:', error);
         }
-      } else {
-        console.log('⏳ Contract not settled yet or not available');
       }
     };
 
@@ -193,8 +192,10 @@ export default function AgreementDetailPage() {
     
     try {
       // Ensure we're on the correct chain before transaction
-      if (!isCorrectChain) {
-        await switchNetwork();
+      const ok = await ensureCorrectChain();
+      if (!ok) {
+        showToast("Please switch to Base Sepolia network to place bets", "warning");
+        return;
       }
       
       const amount = parseEther(betAmount);
@@ -212,6 +213,7 @@ export default function AgreementDetailPage() {
         functionName: "simpleBet",
         args: [BigInt(contractId), selectedSide],
         value: amount,
+        chainId: baseSepolia.id,
       });
     } catch (err) {
       console.error("Error placing bet:", err);
@@ -243,8 +245,10 @@ export default function AgreementDetailPage() {
     
     try {
       // Ensure we're on the correct chain before transaction
-      if (!isCorrectChain) {
-        await switchNetwork();
+      const ok = await ensureCorrectChain();
+      if (!ok) {
+        showToast("Please switch to Base Sepolia network to comment", "warning");
+        return;
       }
       
       setLastAction("comment");
@@ -260,6 +264,7 @@ export default function AgreementDetailPage() {
         abi: AGREEMENT_FACTORY_ABI,
         functionName: "addComment",
         args: [BigInt(contractId), comment.trim()],
+        chainId: baseSepolia.id,
       });
     } catch (err) {
       console.error("Error adding comment:", err);
@@ -362,6 +367,13 @@ export default function AgreementDetailPage() {
         {/* Countdown Timer */}
         {contract.status === 0 && (
           <CountdownTimer endTime={contract.bettingEndTime} />
+        )}
+
+        {/* Connect Wallet CTA when not connected and open */}
+        {!isConnected && contract.status === 0 && (
+          <div className="mb-4">
+            <ConnectWallet className="!w-full !h-12 !text-base !bg-transparent !border !border-primary !text-primary hover:!bg-primary hover:!text-gray-1000 !rounded-xl" />
+          </div>
         )}
 
         {/* Bet Button */}

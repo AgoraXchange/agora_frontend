@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   ConnectWallet, 
   Wallet,
@@ -10,7 +10,7 @@ import {
 } from "@coinbase/onchainkit/wallet";
 import { Name, Address } from "@coinbase/onchainkit/identity";
 import Link from "next/link";
-import { base } from "wagmi/chains";
+import { baseSepolia } from "wagmi/chains";
 import { useAccount, useChainId } from "wagmi";
 import { useEnsureChain } from "@/lib/hooks/useEnsureChain";
 import { NetworkSwitchModal } from "./NetworkSwitchModal";
@@ -23,8 +23,37 @@ interface HeaderProps {
 export function Header({ saveFrameButton }: HeaderProps) {
   const { address } = useAccount();
   const chainId = useChainId();
-  const { needsSwitch, switchNetwork, isSwitching, error, resetError, retrySwitch } = useEnsureChain();
+  const { 
+    needsSwitch, 
+    switchNetwork, 
+    isSwitching, 
+    error, 
+    resetError, 
+    retrySwitch,
+    autoSwitchEnabled,
+    setAutoSwitchEnabled
+  } = useEnsureChain();
   const [showNetworkModal, setShowNetworkModal] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  
+  // Persist banner dismissal for the session
+  const bannerKey = 'agora:networkBannerDismissed';
+  
+  useEffect(() => {
+    try {
+      const v = typeof window !== 'undefined' ? window.sessionStorage.getItem(bannerKey) : null;
+      if (v === 'true') setBannerDismissed(true);
+    } catch {}
+  }, []);
+  
+  const dismissBanner = () => {
+    setBannerDismissed(true);
+    try {
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem(bannerKey, 'true');
+      }
+    } catch {}
+  };
   
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-gray-1000 border-b border-gray-800">
@@ -75,13 +104,13 @@ export function Header({ saveFrameButton }: HeaderProps) {
                 <ConnectWallet className="!h-8 sm:!h-10 !px-2 sm:!px-4 !text-xs sm:!text-sm !bg-transparent !border !border-primary !text-primary hover:!bg-primary hover:!text-gray-1000 !rounded-lg transition-colors !min-w-0">
                   <Name 
                     className="text-inherit truncate" 
-                    chain={base}  // Check Base Name on mainnet
+                    chain={baseSepolia}
                   />
                 </ConnectWallet>
                 <WalletDropdown>
                   <Name 
                     address={address}
-                    chain={base}  // Check Base Name on mainnet
+                    chain={baseSepolia}
                   />
                   <Address address={address} />
                   <WalletDropdownLink icon="wallet" href="https://wallet.coinbase.com">
@@ -94,6 +123,43 @@ export function Header({ saveFrameButton }: HeaderProps) {
           </div>
         </div>
       </div>
+
+      {/* Wrong Network Banner */}
+      {needsSwitch && !bannerDismissed && (
+        <div className="bg-red-900/30 border-b border-red-700">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm text-red-300">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>Wrong network. Please switch to Base Sepolia.</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-1 text-xs text-gray-300">
+                <input
+                  type="checkbox"
+                  className="accent-primary"
+                  checked={autoSwitchEnabled}
+                  onChange={(e) => setAutoSwitchEnabled(e.target.checked)}
+                />
+                Auto-switch
+              </label>
+              <button
+                onClick={switchNetwork}
+                disabled={isSwitching}
+                className="text-xs bg-primary hover:bg-primary/90 text-gray-1000 px-3 py-1 rounded-md disabled:opacity-60"
+              >
+                {isSwitching ? 'Switching…' : 'Switch now'}
+              </button>
+              <button onClick={dismissBanner} className="text-gray-400 hover:text-white">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Network Switch Modal */}
       <NetworkSwitchModal
