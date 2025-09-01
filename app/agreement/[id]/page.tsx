@@ -2,9 +2,10 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useConfig } from "wagmi";
 import { baseSepolia } from "wagmi/chains";
 import { parseEther } from "viem";
+import { readContract } from "@wagmi/core";
 import { AGREEMENT_FACTORY_ADDRESS, AGREEMENT_FACTORY_ABI } from "@/lib/agreementFactoryABI";
 import { BettingOptions } from "@/components/BettingOptions";
 import { CountdownTimer } from "@/components/CountdownTimer";
@@ -74,11 +75,52 @@ export default function AgreementDetailPage() {
   const contract = contractData as Contract;
   const comments = (commentsData as unknown as Comment[][])?.[0] || [];
   
+  // Get wagmi config
+  const config = useConfig();
+  
+  // State to store commenter sides
+  const [commenterSides, setCommenterSides] = useState<Map<string, number>>(new Map());
+  
+  // Fetch bet sides for all commenters
+  useEffect(() => {
+    const fetchCommenterSides = async () => {
+      if (comments.length === 0) return;
+      
+      const uniqueCommenters = [...new Set(comments.map(c => c.commenter))];
+      const sideMap = new Map<string, number>();
+      
+      // Fetch sides for each commenter
+      for (const commenter of uniqueCommenters) {
+        try {
+          const result = await readContract(config, {
+            address: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
+            abi: AGREEMENT_FACTORY_ABI,
+            functionName: "getUserBetsPaginated",
+            args: [BigInt(contractId), commenter as `0x${string}`, BigInt(0), BigInt(1)],
+          });
+          
+          // Result is a tuple: [amounts, choices, claimed, totalBets]
+          const [, choices, ,] = result as readonly [readonly bigint[], readonly number[], readonly boolean[], bigint];
+          
+          if (choices && choices.length > 0) {
+            // choices[0] contains the side (1 or 2)
+            sideMap.set(commenter.toLowerCase(), choices[0]);
+          }
+        } catch (error) {
+          console.error(`Failed to fetch side for ${commenter}:`, error);
+        }
+      }
+      
+      setCommenterSides(sideMap);
+    };
+    
+    fetchCommenterSides();
+  }, [comments, contractId, config]);
   
   // 댓글에 side 정보 추가
   const commentsWithSide = comments.map((comment) => ({
     ...comment,
-    side: comment.side || (comment.commenter.slice(-1).charCodeAt(0) % 2 === 0 ? 1 : 2) // 임시로 주소 기반으로 side 결정
+    side: commenterSides.get(comment.commenter.toLowerCase()) || 0 // 0 if no bet found
   }));
 
   // Fetch winner arguments when contract is settled
