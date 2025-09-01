@@ -4,6 +4,7 @@ import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import "./globals.css";
 import { Providers } from "./providers";
+import { GlobalNetworkBanner } from "@/components/GlobalNetworkBanner";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -85,7 +86,10 @@ export default function RootLayout({
           })();
           `}
         </Script>
-        <Providers>{children}</Providers>
+        <Providers>
+          <GlobalNetworkBanner />
+          {children}
+        </Providers>
       </body>
     </html>
   );

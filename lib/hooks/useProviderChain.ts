@@ -38,6 +38,8 @@ export function useProviderChain() {
   const providerRef = useRef<EIP1193Provider | null>(null);
   const [providerChainId, setProviderChainId] = useState<number | null>(null);
   const [isCoinbaseBrowser, setIsCoinbaseBrowser] = useState<boolean>(false);
+  const [isSwitching, setIsSwitching] = useState(false);
+  const [switchError, setSwitchError] = useState<string | null>(null);
 
   const readChain = useCallback(async () => {
     const prov = providerRef.current ?? getInjectedProvider();
@@ -75,12 +77,76 @@ export function useProviderChain() {
     return providerChainId !== null && uiChainId !== undefined && providerChainId !== uiChainId;
   }, [providerChainId, uiChainId]);
 
+  const switchToSepolia = useCallback(async (): Promise<boolean> => {
+    const prov = providerRef.current ?? getInjectedProvider();
+    providerRef.current = prov;
+    if (!prov?.request) return false;
+    const BASE_SEPOLIA_HEX = "0x14a34"; // 84532
+    setIsSwitching(true);
+    setSwitchError(null);
+    try {
+      // Try to switch first
+      await prov.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: BASE_SEPOLIA_HEX }],
+      } as EthRequestArgs);
+    } catch (err: unknown) {
+      // If the chain is not added, attempt to add it
+      const message = err instanceof Error ? err.message : String(err);
+      const code = (err as { code?: number }).code;
+      const needsAdd = code === 4902 || /Unrecognized chain ID|chain .* not found/i.test(message);
+      if (!needsAdd) {
+        setSwitchError(message);
+        setIsSwitching(false);
+        return false;
+      }
+      try {
+        await prov.request({
+          method: "wallet_addEthereumChain",
+          params: [
+            {
+              chainId: BASE_SEPOLIA_HEX,
+              chainName: "Base Sepolia",
+              nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+              rpcUrls: ["https://sepolia.base.org"],
+              blockExplorerUrls: ["https://sepolia.basescan.org"],
+            },
+          ],
+        } as EthRequestArgs);
+      } catch (addErr: unknown) {
+        const addMsg = addErr instanceof Error ? addErr.message : String(addErr);
+        setSwitchError(addMsg);
+        setIsSwitching(false);
+        return false;
+      }
+      // After adding, try switching again
+      try {
+        await prov.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: BASE_SEPOLIA_HEX }],
+        } as EthRequestArgs);
+      } catch (switchErr: unknown) {
+        const switchMsg = switchErr instanceof Error ? switchErr.message : String(switchErr);
+        setSwitchError(switchMsg);
+        setIsSwitching(false);
+        return false;
+      }
+    }
+
+    // Confirm the provider actually switched
+    await readChain();
+    setIsSwitching(false);
+    return providerChainId === 84532 || (await readChain()) === 84532;
+  }, [readChain, providerChainId]);
+
   return {
     providerChainId,
     uiChainId,
     isMismatch,
     isCoinbaseBrowser,
     refresh: readChain,
+    switchToSepolia,
+    isSwitching,
+    switchError,
   } as const;
 }
-
