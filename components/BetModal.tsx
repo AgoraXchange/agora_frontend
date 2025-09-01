@@ -17,6 +17,9 @@ interface BetModalProps {
   onBet: () => void;
   isPending: boolean;
   isConfirming: boolean;
+  isCorrectChain: boolean;
+  isSwitching: boolean;
+  needsSwitch: boolean;
 }
 
 export function BetModal({
@@ -34,6 +37,9 @@ export function BetModal({
   onBet,
   isPending,
   isConfirming,
+  isCorrectChain,
+  isSwitching,
+  needsSwitch,
 }: BetModalProps) {
   const [showAmountStep, setShowAmountStep] = useState(false);
 
@@ -194,13 +200,22 @@ export function BetModal({
                 </button>
               </div>
 
+              {/* Network Warning */}
+              {needsSwitch && (
+                <div className="mb-4 p-3 bg-yellow-900/20 border border-yellow-700 rounded-lg">
+                  <p className="text-yellow-400 text-sm text-center">
+                    Please switch to Base Sepolia network to place bets
+                  </p>
+                </div>
+              )}
+
               {/* Bet Button */}
               <button
                 onClick={onBet}
-                disabled={!betAmount || !isValidAmount() || isPending || isConfirming}
+                disabled={!betAmount || !isValidAmount() || isPending || isConfirming || !isCorrectChain || isSwitching}
                 className="w-full bg-primary text-gray-1000 py-4 rounded-xl font-bold text-lg hover:bg-primary/90 disabled:bg-gray-800 disabled:text-gray-100 transition-colors"
               >
-                {isPending || isConfirming ? "Processing..." : "Bet"}
+                {isSwitching ? "Switching Network..." : isPending || isConfirming ? "Processing..." : needsSwitch ? "Wrong Network" : "Bet"}
               </button>
 
               {/* Cancel Button */}

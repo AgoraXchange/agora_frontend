@@ -17,6 +17,9 @@ interface LiveDebateBottomSheetProps {
   isPending: boolean;
   isConfirming: boolean;
   hasBet?: boolean;
+  isCorrectChain: boolean;
+  isSwitching: boolean;
+  needsSwitch: boolean;
 }
 
 export function LiveDebateBottomSheet({
@@ -33,6 +36,9 @@ export function LiveDebateBottomSheet({
   isPending,
   isConfirming,
   hasBet = false,
+  isCorrectChain,
+  isSwitching,
+  needsSwitch,
 }: LiveDebateBottomSheetProps) {
   if (!isOpen) return null;
 
@@ -92,6 +98,15 @@ export function LiveDebateBottomSheet({
           {/* Comment Input - Only show if connected and status is open */}
           {isConnected && contractStatus === 0 && (
             <div className="border-t border-gray-800 p-4">
+              {/* Network Warning */}
+              {needsSwitch && (
+                <div className="mb-3 p-2 bg-yellow-900/20 border border-yellow-700 rounded-lg">
+                  <p className="text-yellow-400 text-xs text-center">
+                    Switch to Base Sepolia network to comment
+                  </p>
+                </div>
+              )}
+              
               <div className="flex items-center gap-2">
                 <input
                   type="text"
@@ -108,9 +123,9 @@ export function LiveDebateBottomSheet({
                 />
                 <button
                   onClick={onSubmitComment}
-                  disabled={!hasBet || !comment.trim() || isPending || isConfirming}
+                  disabled={!hasBet || !comment.trim() || isPending || isConfirming || !isCorrectChain || isSwitching}
                   className={`p-2 ${
-                    hasBet && comment.trim() 
+                    hasBet && comment.trim() && isCorrectChain && !isSwitching
                       ? "text-primary hover:text-primary/80" 
                       : "text-gray-400 cursor-not-allowed"
                   }`}
@@ -120,7 +135,7 @@ export function LiveDebateBottomSheet({
                     alt="Send" 
                     className="w-5 h-5"
                     style={{ 
-                      filter: hasBet 
+                      filter: hasBet && isCorrectChain && !isSwitching
                         ? 'brightness(0) saturate(100%) invert(68%) sepia(86%) saturate(370%) hue-rotate(123deg) brightness(96%) contrast(94%)' 
                         : 'brightness(0) saturate(100%) invert(71%) sepia(0%) saturate(0%) hue-rotate(158deg) brightness(95%) contrast(86%)'
                     }}
