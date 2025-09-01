@@ -138,7 +138,7 @@ export function DebateCard({
               <Name 
                 address={creator as `0x${string}`}
                 chain={baseSepolia}
-                className="text-gray-100 text-xs"
+                className="!text-gray-100 text-xs"
               />
             ) : (
               <span>Unknown</span>
