@@ -4,7 +4,6 @@ import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { parseEther } from "viem";
-import { baseSepolia } from "wagmi/chains";
 import { AGREEMENT_FACTORY_ADDRESS, AGREEMENT_FACTORY_ABI } from "@/lib/agreementFactoryABI";
 import { BettingOptions } from "@/components/BettingOptions";
 import { CountdownTimer } from "@/components/CountdownTimer";
@@ -23,7 +22,7 @@ export default function AgreementDetailPage() {
   const contractId = parseInt(params.id as string);
   
   const { isConnected, address } = useAccount();
-  const { isCorrectChain, isSwitching, needsSwitch } = useEnsureChain(); // Auto switch to Base Sepolia
+  const { isCorrectChain, isSwitching, needsSwitch, switchNetwork } = useEnsureChain(); // Auto switch to Base Sepolia
   const [comment, setComment] = useState("");
   const [showBetModal, setShowBetModal] = useState(false);
   const [showLiveDebate, setShowLiveDebate] = useState(false);
@@ -188,9 +187,14 @@ export default function AgreementDetailPage() {
 
   // Handle betting
   const handleBet = async () => {
-    if (!selectedSide || !betAmount || !isConnected || !isCorrectChain) return;
+    if (!selectedSide || !betAmount || !isConnected) return;
     
     try {
+      // Ensure we're on the correct chain before transaction
+      if (!isCorrectChain) {
+        await switchNetwork();
+      }
+      
       const amount = parseEther(betAmount);
       setLastAction("bet");
       // Track transaction initiated
@@ -206,7 +210,6 @@ export default function AgreementDetailPage() {
         functionName: "simpleBet",
         args: [BigInt(contractId), selectedSide],
         value: amount,
-        chainId: baseSepolia.id,
       });
     } catch (err) {
       console.error("Error placing bet:", err);
@@ -220,9 +223,13 @@ export default function AgreementDetailPage() {
 
   // Handle comment
   const handleComment = async () => {
-    if (!comment.trim() || !isConnected || !isCorrectChain) return;
+    if (!comment.trim() || !isConnected) return;
     
     try {
+      // Ensure we're on the correct chain before transaction
+      if (!isCorrectChain) {
+        await switchNetwork();
+      }
       
       setLastAction("comment");
       // Track transaction initiated for comment
@@ -237,7 +244,6 @@ export default function AgreementDetailPage() {
         abi: AGREEMENT_FACTORY_ABI,
         functionName: "addComment",
         args: [BigInt(contractId), comment.trim()],
-        chainId: baseSepolia.id,
       });
     } catch (err) {
       console.error("Error adding comment:", err);

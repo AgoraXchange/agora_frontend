@@ -3,7 +3,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { parseEther } from "viem";
-import { baseSepolia } from "wagmi/chains";
 import { AGREEMENT_FACTORY_ADDRESS, AGREEMENT_FACTORY_ABI } from "@/lib/agreementFactoryABI";
 import { useRouter } from "next/navigation";
 import { useAnalytics } from "@/lib/hooks/useAnalytics";
@@ -12,7 +11,7 @@ import { useEnsureChain } from "@/lib/hooks/useEnsureChain";
 
 export function CreateAgreement() {
   const { address, isConnected } = useAccount();
-  const { isCorrectChain, isSwitching, needsSwitch } = useEnsureChain(); // Auto switch to Base Sepolia
+  const { isCorrectChain, isSwitching, needsSwitch, switchNetwork } = useEnsureChain(); // Auto switch to Base Sepolia
   const router = useRouter();
   const [topic, setTopic] = useState("");
   const [description, setDescription] = useState("");
@@ -98,17 +97,17 @@ export function CreateAgreement() {
       return;
     }
 
-    if (!isCorrectChain) {
-      alert("Please switch to Base Sepolia network first");
-      return;
-    }
-
     if (!topic.trim() || !description.trim() || !partyA.trim() || !partyB.trim()) {
       alert("Please fill in all required fields");
       return;
     }
 
     try {
+      // Ensure we're on the correct chain before transaction
+      if (!isCorrectChain) {
+        await switchNetwork();
+      }
+      
       // Track create button click (page view again optional)
       trackPageView('create_submit');
       writeContract({
@@ -124,12 +123,11 @@ export function CreateAgreement() {
           parseEther("0.001"), // Fixed min bet
           parseEther("0.1") // Fixed max bet
         ],
-        chainId: baseSepolia.id,
       });
     } catch (err) {
       console.error("Error creating contract:", err);
     }
-  }, [isConnected, address, writeContract, topic, description, partyA, partyB, trackPageView, isCorrectChain]);
+  }, [isConnected, address, writeContract, topic, description, partyA, partyB, trackPageView, switchNetwork, isCorrectChain]);
 
   if (!isReady) {
     return (
