@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { 
   ConnectWallet, 
   Wallet,
@@ -10,7 +11,10 @@ import {
 import { Name, Address } from "@coinbase/onchainkit/identity";
 import Link from "next/link";
 import { base } from "wagmi/chains";
-import { useAccount } from "wagmi";
+import { useAccount, useChainId } from "wagmi";
+import { useEnsureChain } from "@/lib/hooks/useEnsureChain";
+import { NetworkSwitchModal } from "./NetworkSwitchModal";
+import { getNetworkName, getNetworkStatusColor, isBaseSepolia } from "@/lib/utils/network";
 
 interface HeaderProps {
   saveFrameButton?: React.ReactNode;
@@ -18,6 +22,9 @@ interface HeaderProps {
 
 export function Header({ saveFrameButton }: HeaderProps) {
   const { address } = useAccount();
+  const chainId = useChainId();
+  const { needsSwitch, switchNetwork, isSwitching, error, resetError } = useEnsureChain();
+  const [showNetworkModal, setShowNetworkModal] = useState(false);
   
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-gray-1000 border-b border-gray-800">
@@ -34,8 +41,30 @@ export function Header({ saveFrameButton }: HeaderProps) {
               <span className="text-white text-xl sm:text-2xl font-bold">agora</span>
             </Link>
 
-            {/* Right side - Wallet & Save */}
+            {/* Right side - Network, Wallet & Save */}
             <div className="flex items-center gap-2 sm:gap-4">
+              {/* Network Status Indicator */}
+              {chainId && (
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <div className={`w-2 h-2 rounded-full ${isBaseSepolia(chainId) ? 'bg-green-400' : 'bg-red-400'}`} />
+                    <span className={`text-xs sm:text-sm font-medium ${getNetworkStatusColor(chainId)}`}>
+                      {getNetworkName(chainId)}
+                    </span>
+                  </div>
+                  
+                  {/* Switch Network Button */}
+                  {needsSwitch && (
+                    <button
+                      onClick={() => setShowNetworkModal(true)}
+                      className="text-xs bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded transition-colors"
+                    >
+                      Switch
+                    </button>
+                  )}
+                </div>
+              )}
+
               {saveFrameButton}
               
               <Wallet className="z-10">
@@ -61,6 +90,16 @@ export function Header({ saveFrameButton }: HeaderProps) {
           </div>
         </div>
       </div>
+
+      {/* Network Switch Modal */}
+      <NetworkSwitchModal
+        isOpen={showNetworkModal}
+        onClose={() => setShowNetworkModal(false)}
+        onSwitchNetwork={switchNetwork}
+        isSwitching={isSwitching}
+        error={error}
+        onResetError={resetError}
+      />
     </header>
   );
 }

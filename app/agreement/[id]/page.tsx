@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useSwitchChain, useChainId } from "wagmi";
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { parseEther } from "viem";
 import { baseSepolia } from "wagmi/chains";
 import { AGREEMENT_FACTORY_ADDRESS, AGREEMENT_FACTORY_ABI } from "@/lib/agreementFactoryABI";
@@ -23,9 +23,7 @@ export default function AgreementDetailPage() {
   const contractId = parseInt(params.id as string);
   
   const { isConnected, address } = useAccount();
-  const chainId = useChainId();
-  const { switchChain } = useSwitchChain();
-  useEnsureChain(); // Auto switch to Base Sepolia
+  const { isCorrectChain, isSwitching, needsSwitch } = useEnsureChain(); // Auto switch to Base Sepolia
   const [comment, setComment] = useState("");
   const [showBetModal, setShowBetModal] = useState(false);
   const [showLiveDebate, setShowLiveDebate] = useState(false);
@@ -190,14 +188,9 @@ export default function AgreementDetailPage() {
 
   // Handle betting
   const handleBet = async () => {
-    if (!selectedSide || !betAmount || !isConnected) return;
+    if (!selectedSide || !betAmount || !isConnected || !isCorrectChain) return;
     
     try {
-      // Switch to Base Sepolia if not on the right chain
-      if (chainId !== baseSepolia.id) {
-        await switchChain({ chainId: baseSepolia.id });
-      }
-      
       const amount = parseEther(betAmount);
       setLastAction("bet");
       // Track transaction initiated
@@ -227,13 +220,9 @@ export default function AgreementDetailPage() {
 
   // Handle comment
   const handleComment = async () => {
-    if (!comment.trim() || !isConnected) return;
+    if (!comment.trim() || !isConnected || !isCorrectChain) return;
     
     try {
-      // Switch to Base Sepolia if not on the right chain
-      if (chainId !== baseSepolia.id) {
-        await switchChain({ chainId: baseSepolia.id });
-      }
       
       setLastAction("comment");
       // Track transaction initiated for comment
@@ -350,10 +339,20 @@ export default function AgreementDetailPage() {
               });
               setShowBetModal(true);
             }}
-            className="w-full bg-primary text-gray-1000 py-4 rounded-xl font-bold text-lg hover:bg-primary/90 transition-colors mb-8"
+            disabled={!isCorrectChain || isSwitching}
+            className="w-full bg-primary text-gray-1000 py-4 rounded-xl font-bold text-lg hover:bg-primary/90 disabled:bg-gray-800 disabled:text-gray-400 transition-colors mb-8"
           >
-            Bet
+            {isSwitching ? "Switching Network..." : needsSwitch ? "Wrong Network" : "Bet"}
           </button>
+        )}
+
+        {/* Network Warning */}
+        {isConnected && needsSwitch && (
+          <div className="mb-8 p-4 bg-yellow-900/20 border border-yellow-700 rounded-lg">
+            <p className="text-yellow-400 text-sm text-center">
+              Please switch to Base Sepolia network to place bets
+            </p>
+          </div>
         )}
 
         {/* Live Debate Card - Show for both open and closed status */}
@@ -471,6 +470,9 @@ export default function AgreementDetailPage() {
         isPending={isPending}
         isConfirming={isConfirming}
         hasBet={!!hasUserBet}
+        isCorrectChain={isCorrectChain}
+        isSwitching={isSwitching}
+        needsSwitch={needsSwitch}
       />
 
       {/* Bet Modal */}
@@ -495,6 +497,9 @@ export default function AgreementDetailPage() {
         onBet={handleBet}
         isPending={isPending}
         isConfirming={isConfirming}
+        isCorrectChain={isCorrectChain}
+        isSwitching={isSwitching}
+        needsSwitch={needsSwitch}
       />
 
       {/* Error message */}

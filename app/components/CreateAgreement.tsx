@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain, useChainId } from "wagmi";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { parseEther } from "viem";
 import { baseSepolia } from "wagmi/chains";
 import { AGREEMENT_FACTORY_ADDRESS, AGREEMENT_FACTORY_ABI } from "@/lib/agreementFactoryABI";
@@ -12,9 +12,7 @@ import { useEnsureChain } from "@/lib/hooks/useEnsureChain";
 
 export function CreateAgreement() {
   const { address, isConnected } = useAccount();
-  const chainId = useChainId();
-  const { switchChain } = useSwitchChain();
-  useEnsureChain(); // Auto switch to Base Sepolia
+  const { isCorrectChain, isSwitching, needsSwitch } = useEnsureChain(); // Auto switch to Base Sepolia
   const router = useRouter();
   const [topic, setTopic] = useState("");
   const [description, setDescription] = useState("");
@@ -100,17 +98,17 @@ export function CreateAgreement() {
       return;
     }
 
+    if (!isCorrectChain) {
+      alert("Please switch to Base Sepolia network first");
+      return;
+    }
+
     if (!topic.trim() || !description.trim() || !partyA.trim() || !partyB.trim()) {
       alert("Please fill in all required fields");
       return;
     }
 
     try {
-      // Switch to Base Sepolia if not on the right chain
-      if (chainId !== baseSepolia.id) {
-        await switchChain({ chainId: baseSepolia.id });
-      }
-      
       // Track create button click (page view again optional)
       trackPageView('create_submit');
       writeContract({
@@ -131,7 +129,7 @@ export function CreateAgreement() {
     } catch (err) {
       console.error("Error creating contract:", err);
     }
-  }, [isConnected, address, writeContract, topic, description, partyA, partyB, trackPageView, chainId, switchChain]);
+  }, [isConnected, address, writeContract, topic, description, partyA, partyB, trackPageView, isCorrectChain]);
 
   if (!isReady) {
     return (
@@ -260,15 +258,21 @@ export function CreateAgreement() {
       <div className="fixed bottom-0 left-0 right-0 bg-gray-1000 border-t border-gray-800 p-4">
         <button
           onClick={handleCreateContract}
-          disabled={!isConnected || isPending || isConfirming || !topic.trim() || !description.trim() || !partyA.trim() || !partyB.trim()}
+          disabled={!isConnected || isPending || isConfirming || isSwitching || !isCorrectChain || !topic.trim() || !description.trim() || !partyA.trim() || !partyB.trim()}
           className="w-full bg-primary text-gray-1000 py-4 rounded-xl font-bold text-lg hover:bg-primary/90 disabled:bg-gray-800 disabled:text-gray-400 transition-colors"
         >
-          {isPending || isConfirming ? "Creating..." : "Post"}
+          {isSwitching ? "Switching Network..." : isPending || isConfirming ? "Creating..." : "Post"}
         </button>
 
         {!isConnected && (
           <div className="mt-2 text-center">
             <p className="text-gray-400 text-sm">Please connect your wallet to create a debate</p>
+          </div>
+        )}
+
+        {needsSwitch && (
+          <div className="mt-2 text-center">
+            <p className="text-yellow-400 text-sm">Please switch to Base Sepolia network first</p>
           </div>
         )}
       </div>
