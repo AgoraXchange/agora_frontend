@@ -44,7 +44,7 @@ export async function GET() {
       requiredChains: [`eip155:${chainId}`],
     }),
     baseBuilder: {
-      allowedAddresses: ["0x19195e012B788E9354c159FB30bFe366a8990C59"]
+      allowedAddresses: ["0xb4bF841108Cbb79c1d0Cf4013d44c610b0DA93E1"]
     },
   });
 }
