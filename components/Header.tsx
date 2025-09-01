@@ -8,7 +8,7 @@ import {
   WalletDropdownLink,
   WalletDropdownDisconnect 
 } from "@coinbase/onchainkit/wallet";
-import { Name, Address } from "@coinbase/onchainkit/identity";
+import { Name } from "@coinbase/onchainkit/identity";
 import Link from "next/link";
 import { baseSepolia } from "wagmi/chains";
 import { useAccount, useChainId } from "wagmi";
@@ -79,18 +79,16 @@ export function Header({ saveFrameButton }: HeaderProps) {
               {saveFrameButton}
               
               <Wallet className="z-10 flex-shrink-0">
-                <ConnectWallet className="!h-8 sm:!h-10 !px-2 sm:!px-4 !text-xs sm:!text-sm !bg-transparent !border !border-primary !text-primary hover:!bg-primary hover:!text-gray-1000 !rounded-lg transition-colors !min-w-0">
+                {/* Match Save Frame button styles: border, colors, and text alignment */}
+                <ConnectWallet className="!px-3 !py-1.5 !text-xs sm:!text-sm !bg-transparent !border !border-primary !text-primary hover:!bg-primary hover:!text-gray-1000 !rounded-lg !transition-colors !min-w-0 flex items-center justify-center">
                   <Name 
-                    className="text-inherit truncate" 
+                    className="!text-primary truncate max-w-[120px] sm:max-w-[160px]"
                     chain={baseSepolia}
                   />
                 </ConnectWallet>
                 <WalletDropdown>
-                  <Name 
-                    address={address}
-                    chain={baseSepolia}
-                  />
-                  <Address address={address} />
+                  {/* Show a single line for identity to avoid duplicate address display */}
+                  <Name address={address} chain={baseSepolia} />
                   <WalletDropdownLink icon="wallet" href="https://wallet.coinbase.com">
                     Go to Wallet
                   </WalletDropdownLink>

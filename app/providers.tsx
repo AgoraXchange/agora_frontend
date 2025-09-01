@@ -55,7 +55,8 @@ export function Providers(props: { children: ReactNode }) {
             config={{
               appearance: {
                 mode: "auto",
-                theme: "mini-app-theme",
+                // Use OnchainKit built-in theme to avoid overriding wallet colors
+                theme: "dark",
                 name: "Agora",
                 logo: process.env.NEXT_PUBLIC_ICON_URL,
               },
