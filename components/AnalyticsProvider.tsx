@@ -25,7 +25,7 @@ type LoggedInitRef = { current: boolean };
 
 export function AnalyticsProvider({ children }: AnalyticsProviderProps) {
   const { context, isFrameReady } = useMiniKit();
-  const { track, autoIdentify } = useAnalytics();
+  const { track } = useAnalytics();
   // Prepare a global flag on window to avoid duplicate init logs in dev/StrictMode
   if (typeof window !== 'undefined') {
     const w = window as Window & { __agoraLoggedAnalyticsInitRef?: LoggedInitRef };
@@ -67,12 +67,7 @@ export function AnalyticsProvider({ children }: AnalyticsProviderProps) {
     }
   }, [isFrameReady, track, context]);
 
-  useEffect(() => {
-    // Auto-identify user when context becomes available
-    if (context && isAnalyticsEnabled()) {
-      autoIdentify();
-    }
-  }, [context, autoIdentify]);
+  // Identification is handled on wallet connect in WalletAnalytics.
 
   const contextValue: AnalyticsContextType = {
     isEnabled: isAnalyticsEnabled(),

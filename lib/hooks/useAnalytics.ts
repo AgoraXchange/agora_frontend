@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useMiniKit } from '@coinbase/onchainkit/minikit';
-import { getMixpanel, isAnalyticsEnabled } from '@/lib/mixpanel';
+import { getMixpanel, isAnalyticsEnabled, registerSuperProperties, resetAnalytics } from '@/lib/mixpanel';
 import { 
   EventName, 
   DebateEventProperties, 
@@ -62,6 +62,23 @@ export const useAnalytics = () => {
     }
   }, [mixpanel]);
 
+  const register = useCallback((properties: Record<string, unknown>) => {
+    if (!isAnalyticsEnabled()) return;
+    try {
+      registerSuperProperties(properties);
+    } catch (error) {
+      console.error('Error registering super properties:', error);
+    }
+  }, []);
+
+  const reset = useCallback(() => {
+    try {
+      resetAnalytics();
+    } catch (error) {
+      console.error('Error resetting analytics:', error);
+    }
+  }, []);
+
   const setUserProperties = useCallback((properties: Record<string, unknown>) => {
     if (!isAnalyticsEnabled() || !mixpanel) {
       return;
@@ -116,20 +133,15 @@ export const useAnalytics = () => {
 
   // Auto-identify user if FID is available
   const autoIdentify = useCallback(() => {
-    if (context?.user?.fid) {
-      identify(context.user.fid.toString(), {
-        fid: context.user.fid,
-        username: context.user.username,
-        display_name: context.user.displayName,
-        pfp_url: context.user.pfpUrl,
-        frame_added: context.client?.added
-      });
-    }
+    // Intentionally no-op for wallet-address identification strategy.
+    // Wallet identification occurs on connect in WalletAnalytics.
   }, [context, identify]);
 
   return {
     track,
     identify,
+    register,
+    reset,
     setUserProperties,
     trackDebateEvent,
     trackBetEvent,
