@@ -8,10 +8,12 @@ import { useRouter } from "next/navigation";
 import { useAnalytics } from "@/lib/hooks/useAnalytics";
 import { EVENTS } from "@/lib/analytics";
 import { useEnsureChain } from "@/lib/hooks/useEnsureChain";
+import { useToast } from "@/components/Toast";
 
 export function CreateAgreement() {
   const { address, isConnected } = useAccount();
   const { isCorrectChain, isSwitching, needsSwitch, switchNetwork } = useEnsureChain(); // Auto switch to Base Sepolia
+  const { showToast, ToastContainer } = useToast();
   const router = useRouter();
   const [topic, setTopic] = useState("");
   const [description, setDescription] = useState("");
@@ -126,8 +128,20 @@ export function CreateAgreement() {
       });
     } catch (err) {
       console.error("Error creating contract:", err);
+      
+      // Check if user rejected the transaction
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      if (errorMessage.includes('User rejected') || errorMessage.includes('user rejected') || 
+          errorMessage.includes('User denied') || errorMessage.includes('user denied')) {
+        // Don't show error for user rejections, it's a normal action
+        console.log("User cancelled the contract creation transaction");
+        return;
+      }
+      
+      // Show error toast for actual failures
+      showToast("Failed to create contract. Please try again.", "error");
     }
-  }, [isConnected, address, writeContract, topic, description, partyA, partyB, trackPageView, switchNetwork, isCorrectChain]);
+  }, [isConnected, address, writeContract, topic, description, partyA, partyB, trackPageView, switchNetwork, isCorrectChain, showToast]);
 
   if (!isReady) {
     return (
@@ -297,6 +311,9 @@ export function CreateAgreement() {
           </div>
         </div>
       )}
+
+      {/* Toast Notifications */}
+      <ToastContainer />
     </div>
   );
 }

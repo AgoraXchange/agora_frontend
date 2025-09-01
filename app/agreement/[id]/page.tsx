@@ -15,6 +15,7 @@ import type { Comment, Contract } from "@/types/contract";
 import { useAnalytics } from "@/lib/hooks/useAnalytics";
 import { EVENTS } from "@/lib/analytics";
 import { useEnsureChain } from "@/lib/hooks/useEnsureChain";
+import { useToast } from "@/components/Toast";
 
 export default function AgreementDetailPage() {
   const params = useParams();
@@ -23,6 +24,7 @@ export default function AgreementDetailPage() {
   
   const { isConnected, address } = useAccount();
   const { isCorrectChain, isSwitching, needsSwitch, switchNetwork } = useEnsureChain(); // Auto switch to Base Sepolia
+  const { showToast, ToastContainer } = useToast();
   const [comment, setComment] = useState("");
   const [showBetModal, setShowBetModal] = useState(false);
   const [showLiveDebate, setShowLiveDebate] = useState(false);
@@ -213,6 +215,20 @@ export default function AgreementDetailPage() {
       });
     } catch (err) {
       console.error("Error placing bet:", err);
+      
+      // Check if user rejected the transaction
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      if (errorMessage.includes('User rejected') || errorMessage.includes('user rejected') || 
+          errorMessage.includes('User denied') || errorMessage.includes('user denied')) {
+        // Don't track analytics for user rejections, it's a normal action
+        console.log("User cancelled the betting transaction");
+        return;
+      }
+      
+      // Show error toast for actual failures
+      showToast("Failed to place bet. Please try again.", "error");
+      
+      // Only track actual failures (not user cancellations)
       trackBetEvent(EVENTS.TRANSACTION_FAILED, {
         debate_id: String(contractId),
         side: selectedSide === 1 ? "A" : "B",
@@ -247,6 +263,20 @@ export default function AgreementDetailPage() {
       });
     } catch (err) {
       console.error("Error adding comment:", err);
+      
+      // Check if user rejected the transaction
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      if (errorMessage.includes('User rejected') || errorMessage.includes('user rejected') || 
+          errorMessage.includes('User denied') || errorMessage.includes('user denied')) {
+        // Don't track analytics for user rejections, it's a normal action
+        console.log("User cancelled the comment transaction");
+        return;
+      }
+      
+      // Show error toast for actual failures
+      showToast("Failed to add comment. Please try again.", "error");
+      
+      // Only track actual failures (not user cancellations)
       trackDebateEvent(EVENTS.TRANSACTION_FAILED, {
         debate_id: String(contractId),
         debate_topic: contract?.topic || "",
@@ -529,6 +559,9 @@ export default function AgreementDetailPage() {
           </button>
         </div>
       )}
+
+      {/* Toast Notifications */}
+      <ToastContainer />
     </div>
   );
 }
