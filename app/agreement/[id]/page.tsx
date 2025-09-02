@@ -13,7 +13,6 @@ import { ResultSection } from "@/components/ResultSection";
 import { LiveDebateCard } from "@/components/LiveDebateCard";
 import { LiveDebateBottomSheet } from "@/components/LiveDebateBottomSheet";
 import { BetModal } from "@/components/BetModal";
-import { TxStatusModal } from "@/components/TxStatusModal";
 import type { Comment, Contract } from "@/types/contract";
 import { useAnalytics } from "@/lib/hooks/useAnalytics";
 import { EVENTS } from "@/lib/analytics";
@@ -32,8 +31,6 @@ export default function AgreementDetailPage() {
   const { showToast, ToastContainer } = useToast();
   const [betError, setBetError] = useState<{ title: string; details: string[] } | null>(null);
   const [hasShownSubmitted, setHasShownSubmitted] = useState(false);
-  const [txModalOpen, setTxModalOpen] = useState(false);
-  const [txPhase, setTxPhase] = useState<"signing" | "submitted" | "confirming" | "success" | "error">("signing");
   const [comment, setComment] = useState("");
   const [showBetModal, setShowBetModal] = useState(false);
   const [showLiveDebate, setShowLiveDebate] = useState(false);
@@ -220,7 +217,6 @@ export default function AgreementDetailPage() {
       setLastAction(null);
       setBetError(null);
       setHasShownSubmitted(false);
-      setTxPhase("success");
     }
   }, [isSuccess, refetchContract, refetchComments, refetchUserBet, lastAction, trackBetEvent, trackDebateEvent, contract?.topic, contract?.creator, contract?.status, betAmount, selectedSide, contractId, address, config]);
 
@@ -243,8 +239,7 @@ export default function AgreementDetailPage() {
       details.push(`Reason: ${msg.length > 160 ? msg.slice(0,160) + '…' : msg}`);
       setBetError({ title: 'Bet failed', details });
       showToast('Bet failed. See details in the sheet.', 'error', 8000);
-      setTxPhase("error");
-      setTxModalOpen(true);
+      
       setHasShownSubmitted(false);
     }
   }, [isTxError, txError, contractData, balanceData, showToast]);
@@ -254,18 +249,11 @@ export default function AgreementDetailPage() {
     if (hash && !hasShownSubmitted) {
       const short = typeof hash === 'string' ? `${hash.slice(0, 10)}…` : '';
       showToast(`Transaction submitted ${short}`, 'info', 8000);
-      setTxPhase('submitted');
-      setTxModalOpen(true);
+      
       setHasShownSubmitted(true);
     }
   }, [hash, hasShownSubmitted, showToast]);
 
-  // Reflect confirming state in the modal
-  useEffect(() => {
-    if (isConfirming && txModalOpen) {
-      setTxPhase('confirming');
-    }
-  }, [isConfirming, txModalOpen]);
 
   // Track page view when contract data becomes available
   useEffect(() => {
@@ -306,13 +294,10 @@ export default function AgreementDetailPage() {
     
     try {
       setHasShownSubmitted(false);
-      setTxModalOpen(true);
-      setTxPhase("signing");
       // Ensure we're on the correct chain before transaction
       const ok = await ensureCorrectChain();
       if (!ok) {
         showToast("Please switch to Base Sepolia network to place bets", "warning");
-        setTxModalOpen(false);
         return;
       }
       
@@ -327,7 +312,7 @@ export default function AgreementDetailPage() {
         ];
         setBetError({ title: 'Insufficient funds', details: ["Insufficient ETH to cover the bet amount.", ...details] });
         showToast("Insufficient ETH to cover the bet amount.", "error", 8000);
-        setTxModalOpen(false);
+        
         return;
       }
       console.log('[Bet Debug] balance:', balanceData?.value?.toString(), 'betAmount (wei):', amount.toString());
@@ -339,7 +324,7 @@ export default function AgreementDetailPage() {
         amount: parseFloat(betAmount),
       });
       
-      writeContract({
+      await writeContract({
         address: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
         abi: AGREEMENT_FACTORY_ABI,
         functionName: "simpleBet",
@@ -348,7 +333,6 @@ export default function AgreementDetailPage() {
         chainId: baseSepolia.id,
       });
     } catch (err) {
-      console.error("Error placing bet:", err);
       
       // Check if user rejected the transaction
       const errorMessage = err instanceof Error ? err.message : String(err);
@@ -356,9 +340,9 @@ export default function AgreementDetailPage() {
           errorMessage.includes('User denied') || errorMessage.includes('user denied')) {
         // Don't track analytics for user rejections, it's a normal action
         console.log("User cancelled the betting transaction");
-        setTxModalOpen(false);
         return;
       }
+      console.error("Error placing bet:", err);
       
       // Show error toast for actual failures
       showToast("Failed to place bet. Please try again.", "error", 8000);
@@ -388,7 +372,7 @@ export default function AgreementDetailPage() {
       const compact = errorMessage.length > 160 ? errorMessage.slice(0, 160) + '…' : errorMessage;
       details.push(`Reason: ${compact}`);
       setBetError({ title: 'Bet failed', details });
-      setTxPhase("error");
+      
       
       // Only track actual failures (not user cancellations)
       trackBetEvent(EVENTS.TRANSACTION_FAILED, {
@@ -419,7 +403,7 @@ export default function AgreementDetailPage() {
         creator: contract?.creator || "",
         status: (contract?.status === 0 ? "open" : contract?.status === 1 ? "closed" : "resolved"),
       });
-      writeContract({
+      await writeContract({
         address: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
         abi: AGREEMENT_FACTORY_ABI,
         functionName: "addComment",
@@ -715,12 +699,20 @@ export default function AgreementDetailPage() {
         insufficientMessage="Insufficient ETH to cover the bet amount."
       />
 
-      {/* Error message */}
-      {error && (
-        <div className="fixed bottom-20 left-4 right-4 max-w-md mx-auto bg-red-500/20 border border-red-500 rounded-xl p-4">
-          <p className="text-red-400 text-sm">{error.message}</p>
-        </div>
-      )}
+      {/* Error message (hide benign user-rejected errors) */}
+      {(() => {
+        const msg = error?.message ?? "";
+        const isUserCancel = typeof msg === 'string' && (
+          msg.toLowerCase().includes('user rejected') ||
+          msg.toLowerCase().includes('user denied')
+        );
+        if (!msg || isUserCancel) return null;
+        return (
+          <div className="fixed bottom-20 left-4 right-4 max-w-md mx-auto bg-red-500/20 border border-red-500 rounded-xl p-4">
+            <p className="text-red-400 text-sm">{msg}</p>
+          </div>
+        );
+      })()}
 
       {/* Bottom Input Bar - Only show for open status */}
       {contract.status === 0 && (
@@ -739,17 +731,6 @@ export default function AgreementDetailPage() {
 
       {/* Toast Notifications */}
       <ToastContainer />
-
-      {/* Global Tx Status Modal for mini-app visibility */}
-      <TxStatusModal
-        isOpen={txModalOpen}
-        phase={txPhase}
-        hash={typeof hash === 'string' ? hash : undefined}
-        network="base-sepolia"
-        errorTitle={betError?.title}
-        errorDetails={betError?.details}
-        onClose={() => setTxModalOpen(false)}
-      />
     </div>
   );
 }

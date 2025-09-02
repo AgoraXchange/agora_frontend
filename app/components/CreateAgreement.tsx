@@ -132,7 +132,7 @@ export function CreateAgreement() {
       
       // Track create button click (page view again optional)
       trackPageView('create_submit');
-      writeContract({
+      await writeContract({
         address: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
         abi: AGREEMENT_FACTORY_ABI,
         functionName: "createContract",
@@ -148,8 +148,6 @@ export function CreateAgreement() {
         chainId: baseSepolia.id,
       });
     } catch (err) {
-      console.error("Error creating contract:", err);
-      
       // Check if user rejected the transaction
       const errorMessage = err instanceof Error ? err.message : String(err);
       if (errorMessage.includes('User rejected') || errorMessage.includes('user rejected') || 
@@ -158,6 +156,7 @@ export function CreateAgreement() {
         console.log("User cancelled the contract creation transaction");
         return;
       }
+      console.error("Error creating contract:", err);
       
       // Show error toast for actual failures
       showToast("Failed to create contract. Please try again.", "error");
