@@ -1,6 +1,10 @@
 # Agora - The Onchain Colosseum
 
-A decentralized betting platform where the sharpest minds compete and winners take the treasure. Built on Base Sepolia with MiniKit and OnchainKit integration.
+Agora aspires to become the debate platform of the onchain world. We want to turn debate into a game for users through gamification and AI. By opening a market that people can use every day, we make it possible to capture speech itself, the intangible asset of human exchange, onchain as the internet shifts from Web2 to Web3. Words preserved in this way can be passed down to future generations.
+
+Agora allows users to place bets on specific topics. Each participant stands on their own perspective, and those who guide that perspective to victory can earn rewards. When the betting period ends, an AI jury DAO reviews the debate records and delivers a verdict. The outcome is shared transparently with all participants.
+
+Built on Base Sepolia with MiniKit and OnchainKit integration.
 
 ## Tech Stack
 
