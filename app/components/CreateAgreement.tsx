@@ -22,7 +22,7 @@ export function CreateAgreement() {
   const [partyB, setPartyB] = useState("");
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isReady, setIsReady] = useState(false);
-  const [minBet, setMinBet] = useState<string>("0.001");
+  const [minBet, setMinBet] = useState<string>("0.0002");
   const [maxBet, setMaxBet] = useState<string>("0.1");
   // Betting end time input removed; default duration is fixed (24h)
 
@@ -116,12 +116,36 @@ export function CreateAgreement() {
     try {
       minWei = parseEther((minBet || '').trim());
       maxWei = parseEther((maxBet || '').trim());
-      if (minWei <= BigInt(0) || maxWei <= BigInt(0) || minWei > maxWei) {
-        // Toast removed
+      
+      // Contract validation rules:
+      // - minBetAmount must be > 0
+      // - maxBetAmount must be >= minBetAmount
+      // - Default limits: 0.0002 ETH min, 100 ETH max
+      const MIN_ALLOWED = parseEther("0.0002"); // Contract's defaultMinBet
+      const MAX_ALLOWED = parseEther("100"); // Contract's defaultMaxBet
+      
+      if (minWei <= BigInt(0)) {
+        alert("Minimum bet must be greater than 0");
+        return;
+      }
+      if (minWei < MIN_ALLOWED) {
+        alert(`Minimum bet must be at least 0.0002 ETH`);
+        return;
+      }
+      if (maxWei <= BigInt(0)) {
+        alert("Maximum bet must be greater than 0");
+        return;
+      }
+      if (maxWei > MAX_ALLOWED) {
+        alert(`Maximum bet cannot exceed 100 ETH`);
+        return;
+      }
+      if (minWei > maxWei) {
+        alert("Maximum bet must be greater than or equal to minimum bet");
         return;
       }
     } catch {
-      // Toast removed
+      alert("Please enter valid ETH amounts");
       return;
     }
 
@@ -303,13 +327,14 @@ export function CreateAgreement() {
                   (() => {
                     try {
                       const v = parseEther((minBet || '').trim());
-                      return v > BigInt(0) ? 'border-gray-800 focus:border-primary' : 'border-red-500';
+                      const MIN_ALLOWED = parseEther("0.0002");
+                      return v >= MIN_ALLOWED ? 'border-gray-800 focus:border-primary' : 'border-red-500';
                     } catch { return 'border-red-500'; }
                   })()
                 }`}
-                placeholder="0.001"
-                step="0.001"
-                min="0"
+                placeholder="0.0002"
+                step="0.0001"
+                min="0.0002"
               />
             </div>
             <div>
@@ -323,13 +348,15 @@ export function CreateAgreement() {
                     try {
                       const minV = parseEther((minBet || '').trim());
                       const maxV = parseEther((maxBet || '').trim());
-                      return maxV >= minV && maxV > BigInt(0) ? 'border-gray-800 focus:border-primary' : 'border-red-500';
+                      const MAX_ALLOWED = parseEther("100");
+                      return maxV >= minV && maxV > BigInt(0) && maxV <= MAX_ALLOWED ? 'border-gray-800 focus:border-primary' : 'border-red-500';
                     } catch { return 'border-red-500'; }
                   })()
                 }`}
                 placeholder="0.1"
                 step="0.001"
-                min="0"
+                min="0.0002"
+                max="100"
               />
             </div>
           </div>
@@ -338,9 +365,13 @@ export function CreateAgreement() {
             try {
               const minV = parseEther((minBet || '').trim());
               const maxV = parseEther((maxBet || '').trim());
-              if (minV <= BigInt(0)) return <p className="text-red-400 text-sm mt-2">Min bet must be greater than 0.</p>;
+              const MIN_ALLOWED = parseEther("0.0002");
+              const MAX_ALLOWED = parseEther("100");
+              
+              if (minV < MIN_ALLOWED) return <p className="text-red-400 text-sm mt-2">Min bet must be at least 0.0002 ETH.</p>;
               if (maxV <= BigInt(0)) return <p className="text-red-400 text-sm mt-2">Max bet must be greater than 0.</p>;
-              if (maxV < minV) return <p className="text-red-400 text-sm mt-2">Max bet must be greater than or equal to Min bet.</p>;
+              if (maxV > MAX_ALLOWED) return <p className="text-red-400 text-sm mt-2">Max bet cannot exceed 100 ETH.</p>;
+              if (maxV < minV) return <p className="text-red-400 text-sm mt-2">Max bet must be at least {minBet} ETH.</p>;
               return null;
             } catch {
               return <p className="text-red-400 text-sm mt-2">Enter valid ETH amounts (e.g., 0.001).</p>;
@@ -358,7 +389,10 @@ export function CreateAgreement() {
             try {
               const minV = parseEther((minBet || '').trim());
               const maxV = parseEther((maxBet || '').trim());
-              if (minV <= BigInt(0) || maxV <= BigInt(0) || maxV < minV) return true;
+              const MIN_ALLOWED = parseEther("0.0002");
+              const MAX_ALLOWED = parseEther("100");
+              
+              if (minV < MIN_ALLOWED || maxV <= BigInt(0) || maxV > MAX_ALLOWED || maxV < minV) return true;
               return false;
             } catch { return true; }
           })()}

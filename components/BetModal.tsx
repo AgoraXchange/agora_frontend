@@ -24,7 +24,8 @@ interface BetModalProps {
   errorDetails?: string[];
   onClearError?: () => void;
   insufficientBalance?: boolean;
-  insufficientMessage?: string;
+  minBet?: string;
+  maxBet?: string;
 }
 
 export function BetModal({
@@ -49,7 +50,8 @@ export function BetModal({
   errorDetails,
   onClearError,
   insufficientBalance = false,
-  insufficientMessage = "Insufficient ETH to cover the bet amount.",
+  minBet = "0.0002",
+  maxBet = "100",
 }: BetModalProps) {
   const [showAmountStep, setShowAmountStep] = useState(false);
 
@@ -74,13 +76,21 @@ export function BetModal({
 
   const increaseBetAmount = () => {
     const current = parseFloat(betAmount) || 0;
-    setBetAmount((current + 0.001).toFixed(3));
+    const max = parseFloat(maxBet);
+    const increment = 0.001;
+    const newAmount = current + increment;
+    if (newAmount <= max) {
+      setBetAmount(newAmount.toFixed(4));
+    }
   };
 
   const decreaseBetAmount = () => {
     const current = parseFloat(betAmount) || 0;
-    if (current > 0.001) {
-      setBetAmount((current - 0.001).toFixed(3));
+    const min = parseFloat(minBet);
+    const decrement = 0.001;
+    const newAmount = current - decrement;
+    if (newAmount >= min) {
+      setBetAmount(newAmount.toFixed(4));
     }
   };
 
@@ -95,7 +105,9 @@ export function BetModal({
 
   const isValidAmount = () => {
     const amount = parseFloat(betAmount) || 0;
-    return amount >= 0.001 && amount <= 0.1;
+    const min = parseFloat(minBet);
+    const max = parseFloat(maxBet);
+    return amount >= min && amount <= max;
   };
 
   const hasOppositeBets = () => {
@@ -194,11 +206,15 @@ export function BetModal({
                     value={betAmount}
                     onChange={(e) => setBetAmount(e.target.value)}
                     className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white text-center text-lg"
-                    placeholder="0.001"
-                    step="0.001"
-                    min="0.001"
+                    placeholder={minBet}
+                    step="0.0001"
+                    min={minBet}
+                    max={maxBet}
                   />
                   <div className="text-center text-gray-400 text-sm mt-1">ETH</div>
+                  <div className="text-center text-gray-500 text-xs mt-1">
+                    Min: {minBet} ETH | Max: {maxBet} ETH
+                  </div>
                 </div>
 
                 <button
@@ -220,14 +236,44 @@ export function BetModal({
                 </div>
               )}
 
-              {/* Insufficient balance warning */}
-              {insufficientBalance && (
-                <div className="mb-4 p-3 bg-red-900/30 border border-red-600 rounded-lg">
-                  <p className="text-red-300 text-sm text-center">
-                    {insufficientMessage}
-                  </p>
-                </div>
-              )}
+              {/* Bet validation warning */}
+              {(() => {
+                const amount = parseFloat(betAmount) || 0;
+                const min = parseFloat(minBet);
+                const max = parseFloat(maxBet);
+                
+                if (amount < min && betAmount !== '') {
+                  return (
+                    <div className="mb-4 p-3 bg-yellow-900/30 border border-yellow-600 rounded-lg">
+                      <p className="text-yellow-300 text-sm text-center">
+                        Minimum bet is {minBet} ETH
+                      </p>
+                    </div>
+                  );
+                }
+                
+                if (amount > max) {
+                  return (
+                    <div className="mb-4 p-3 bg-yellow-900/30 border border-yellow-600 rounded-lg">
+                      <p className="text-yellow-300 text-sm text-center">
+                        Maximum bet is {maxBet} ETH
+                      </p>
+                    </div>
+                  );
+                }
+                
+                if (insufficientBalance) {
+                  return (
+                    <div className="mb-4 p-3 bg-red-900/30 border border-red-600 rounded-lg">
+                      <p className="text-red-300 text-sm text-center">
+                        Insufficient ETH balance (need {betAmount} ETH + gas fees)
+                      </p>
+                    </div>
+                  );
+                }
+                
+                return null;
+              })()}
 
               {/* Error State Message */}
               {errorTitle && (
@@ -249,15 +295,22 @@ export function BetModal({
                 disabled={!betAmount || !isValidAmount() || isPending || isConfirming || !isCorrectChain || isSwitching || insufficientBalance}
                 className="w-full bg-primary text-gray-1000 py-4 rounded-xl font-bold text-lg hover:bg-primary/90 disabled:bg-gray-800 disabled:text-gray-100 transition-colors"
               >
-                {isSwitching 
-                  ? "Switching Network..." 
-                  : isPending || isConfirming 
-                  ? "Processing..." 
-                  : needsSwitch 
-                  ? "Wrong Network" 
-                  : insufficientBalance 
-                  ? "Insufficient ETH" 
-                  : "Bet"}
+                {(() => {
+                  if (isSwitching) return "Switching Network...";
+                  if (isPending || isConfirming) return "Processing...";
+                  if (needsSwitch) return "Wrong Network";
+                  if (insufficientBalance) return "Insufficient ETH";
+                  
+                  const amount = parseFloat(betAmount) || 0;
+                  const min = parseFloat(minBet);
+                  const max = parseFloat(maxBet);
+                  
+                  if (amount < min && betAmount !== '') return `Min ${minBet} ETH`;
+                  if (amount > max) return `Max ${maxBet} ETH`;
+                  if (!isValidAmount()) return "Invalid Amount";
+                  
+                  return "Bet";
+                })()}
               </button>
 
               {/* Cancel Button */}
