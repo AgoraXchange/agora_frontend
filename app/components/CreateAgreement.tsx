@@ -9,12 +9,12 @@ import { useRouter } from "next/navigation";
 import { useAnalytics } from "@/lib/hooks/useAnalytics";
 import { EVENTS } from "@/lib/analytics";
 import { useEnsureChain } from "@/lib/hooks/useEnsureChain";
-import { useToast } from "@/components/Toast";
+// Toasts removed
 
 export function CreateAgreement() {
   const { address, isConnected } = useAccount();
   const { isCorrectChain, isSwitching, needsSwitch, ensureCorrectChain } = useEnsureChain(); // Auto switch to Base Sepolia
-  const { showToast, ToastContainer } = useToast();
+  // Toasts removed
   const router = useRouter();
   const [topic, setTopic] = useState("");
   const [description, setDescription] = useState("");
@@ -24,6 +24,7 @@ export function CreateAgreement() {
   const [isReady, setIsReady] = useState(false);
   const [minBet, setMinBet] = useState<string>("0.001");
   const [maxBet, setMaxBet] = useState<string>("0.1");
+  // Betting end time input removed; default duration is fixed (24h)
 
   useEffect(() => {
     // Short delay to ensure smooth transition
@@ -76,22 +77,7 @@ export function CreateAgreement() {
         status: "open",
       });
 
-      // Fire Telegram webhook (server-side) without exposing tokens
-      try {
-        const openUrl = (process.env.NEXT_PUBLIC_URL || '') as string;
-        void fetch('/api/telegram', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'debate_created',
-            topic,
-            creator: address,
-            url: openUrl || null,
-          }),
-        });
-      } catch (e) {
-        console.warn('Telegram notification failed:', e);
-      }
+      // Telegram webhook trigger removed by request
     }
   }, [isSuccess, trackDebateEvent, topic, address]);
 
@@ -131,21 +117,21 @@ export function CreateAgreement() {
       minWei = parseEther((minBet || '').trim());
       maxWei = parseEther((maxBet || '').trim());
       if (minWei <= BigInt(0) || maxWei <= BigInt(0) || minWei > maxWei) {
-        showToast("Invalid bet limits. Ensure min > 0 and max ≥ min.", "error");
+        // Toast removed
         return;
       }
     } catch {
-      showToast("Invalid bet limits. Use numeric ETH values (e.g., 0.001).", "error");
+      // Toast removed
       return;
     }
+
+    // Use fixed duration (24 hours)
+    const durationMinutes: number = 24 * 60;
 
     try {
       // Ensure we're on the correct chain before transaction
       const ok = await ensureCorrectChain();
-      if (!ok) {
-        showToast("Please switch to Base Sepolia network first", "warning");
-        return;
-      }
+      if (!ok) { return; }
       
       // Track create button click (page view again optional)
       trackPageView('create_submit');
@@ -158,7 +144,7 @@ export function CreateAgreement() {
           description,
           partyA,
           partyB,
-          BigInt(1440), // Fixed 24 hours duration (1440 minutes)
+          BigInt(durationMinutes), // Fixed 24 hours
           minWei, // User-defined min bet (validated)
           maxWei  // User-defined max bet (validated)
         ],
@@ -175,10 +161,9 @@ export function CreateAgreement() {
       }
       console.error("Error creating contract:", err);
       
-      // Show error toast for actual failures
-      showToast("Failed to create contract. Please try again.", "error");
+      // Toast removed
     }
-  }, [isConnected, address, writeContract, topic, description, partyA, partyB, minBet, maxBet, trackPageView, ensureCorrectChain, showToast]);
+  }, [isConnected, address, writeContract, topic, description, partyA, partyB, minBet, maxBet, trackPageView, ensureCorrectChain]);
 
   if (!isReady) {
     return (
@@ -217,6 +202,8 @@ export function CreateAgreement() {
   return (
     <div className="bg-gray-1000 min-h-screen flex flex-col">
       <div className="flex-1 px-4 pt-4 pb-24">
+        {/* Betting End Time input removed */}
+
         {/* Title Field */}
         <div className="mb-4">
           <label className="block text-white text-lg font-medium mb-2">Title</label>
@@ -416,8 +403,7 @@ export function CreateAgreement() {
         </div>
       )}
 
-      {/* Toast Notifications */}
-      <ToastContainer />
+      {/* Toasts removed */}
     </div>
   );
 }

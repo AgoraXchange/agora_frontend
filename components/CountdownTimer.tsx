@@ -4,19 +4,25 @@ import { useState, useEffect } from "react";
 
 interface CountdownTimerProps {
   endTime: bigint;
+  onEnd?: () => void; // optional callback fired once when time is up
 }
 
-export function CountdownTimer({ endTime }: CountdownTimerProps) {
+export function CountdownTimer({ endTime, onEnd }: CountdownTimerProps) {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-  
+  const [fired, setFired] = useState(false);
+
   useEffect(() => {
-    const timer = setInterval(() => {
+    function tick() {
       const now = Math.floor(Date.now() / 1000);
       const end = Number(endTime);
       const diff = end - now;
-      
+
       if (diff <= 0) {
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+        if (!fired) {
+          setFired(true);
+          try { onEnd?.(); } catch {}
+        }
       } else {
         setTimeLeft({
           days: Math.floor(diff / 86400),
@@ -25,10 +31,13 @@ export function CountdownTimer({ endTime }: CountdownTimerProps) {
           seconds: diff % 60,
         });
       }
-    }, 1000);
-    
+    }
+
+    // run immediately and then every second
+    tick();
+    const timer = setInterval(tick, 1000);
     return () => clearInterval(timer);
-  }, [endTime]);
+  }, [endTime, onEnd, fired]);
 
   return (
     <div className="flex justify-center gap-4 sm:gap-6 mb-8">

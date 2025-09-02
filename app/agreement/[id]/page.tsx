@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useConfig, useBalance } from "wagmi";
 import { baseSepolia } from "wagmi/chains";
 import { parseEther, formatEther } from "viem";
@@ -17,7 +17,7 @@ import type { Comment, Contract } from "@/types/contract";
 import { useAnalytics } from "@/lib/hooks/useAnalytics";
 import { EVENTS } from "@/lib/analytics";
 import { useEnsureChain } from "@/lib/hooks/useEnsureChain";
-import { useToast } from "@/components/Toast";
+// Toasts removed
 import { ConnectWallet } from "@coinbase/onchainkit/wallet";
 
 export default function AgreementDetailPage() {
@@ -28,7 +28,7 @@ export default function AgreementDetailPage() {
   const { isConnected, address } = useAccount();
   const { data: balanceData } = useBalance({ address, chainId: baseSepolia.id, query: { enabled: !!address } });
   const { isCorrectChain, isSwitching, needsSwitch, ensureCorrectChain } = useEnsureChain(); // Auto switch to Base Sepolia
-  const { showToast, ToastContainer } = useToast();
+  // Toasts removed
   const [betError, setBetError] = useState<{ title: string; details: string[] } | null>(null);
   const [hasShownSubmitted, setHasShownSubmitted] = useState(false);
   const [comment, setComment] = useState("");
@@ -38,12 +38,23 @@ export default function AgreementDetailPage() {
   const [betAmount, setBetAmount] = useState("0.001");
   const [lastAction, setLastAction] = useState<"bet" | "comment" | null>(null);
   const { trackDebateEvent, trackBetEvent, trackPageView } = useAnalytics();
-  const [winnerArguments, setWinnerArguments] = useState<{
-    Jury1: string;
-    Jury2: string;
-    Jury3: string;
-    Conclusion: string;
-  } | null>(null);
+  const [winnerArguments, setWinnerArguments] = useState<
+    | {
+        Jury1?: string;
+        Jury2?: string;
+        Jury3?: string;
+        Conclusion?: string;
+      }
+    | {
+        reasoning?: string;
+        confidence?: number;
+        evidence?: string[];
+        deliberationMode?: string;
+        decisionId?: string;
+        committeeDecisionId?: string;
+      }
+    | null
+  >(null);
   
   // Contract data
   const { data: contractData, refetch: refetchContract } = useReadContract({
@@ -81,8 +92,12 @@ export default function AgreementDetailPage() {
   // Get wagmi config
   const config = useConfig();
   
+  // Admin controls removed
+  
   // State to store commenter sides
   const [commenterSides, setCommenterSides] = useState<Map<string, number>>(new Map());
+  // Notify backend once when countdown reaches zero
+  const endNotifiedRef = useRef(false);
   
   // Fetch bet sides for all commenters
   useEffect(() => {
@@ -163,7 +178,6 @@ export default function AgreementDetailPage() {
     if (isSuccess) {
       // Track transaction completed for last action
       if (lastAction === "bet") {
-        showToast("Bet confirmed on Base Sepolia", "success", 6000);
         // Verify on-chain recorded amount for the latest bet (debug)
         (async () => {
           try {
@@ -181,7 +195,6 @@ export default function AgreementDetailPage() {
             console.warn('[Bet Debug] failed to fetch on-chain bet amount:', e);
           }
         })();
-        showToast("Bet confirmed on Base Sepolia", "success", 6000);
         trackBetEvent(EVENTS.TRANSACTION_COMPLETED, {
           debate_id: String(contractId),
           side: selectedSide === 1 ? "A" : "B",
@@ -205,26 +218,7 @@ export default function AgreementDetailPage() {
           creator: contract?.creator || "",
           status: (contract?.status === 0 ? "open" : contract?.status === 1 ? "closed" : "resolved"),
         });
-
-        // Fire Telegram webhook for new comment
-        try {
-          const openUrl = (process.env.NEXT_PUBLIC_URL || '') as string;
-          const deepLink = openUrl ? `${openUrl}/agreement/${contractId}` : null;
-          void fetch('/api/telegram', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: 'comment_created',
-              contractId,
-              topic: contract?.topic || '',
-              commenter: address,
-              content: comment,
-              url: deepLink,
-            }),
-          });
-        } catch (e) {
-          console.warn('Telegram notification for comment failed:', e);
-        }
+        // Telegram webhook trigger removed by request
       }
 
       refetchContract();
@@ -258,21 +252,16 @@ export default function AgreementDetailPage() {
       } catch {}
       details.push(`Reason: ${msg.length > 160 ? msg.slice(0,160) + '…' : msg}`);
       setBetError({ title: 'Bet failed', details });
-      showToast('Bet failed. See details in the sheet.', 'error', 8000);
-      
       setHasShownSubmitted(false);
     }
-  }, [isTxError, txError, contractData, balanceData, showToast]);
+  }, [isTxError, txError, contractData, balanceData]);
 
   // Show a submitted state as soon as we get a hash (helps mini-app users)
   useEffect(() => {
     if (hash && !hasShownSubmitted) {
-      const short = typeof hash === 'string' ? `${hash.slice(0, 10)}…` : '';
-      showToast(`Transaction submitted ${short}`, 'info', 8000);
-      
       setHasShownSubmitted(true);
     }
-  }, [hash, hasShownSubmitted, showToast]);
+  }, [hash, hasShownSubmitted]);
 
 
   // Track page view when contract data becomes available
@@ -316,10 +305,7 @@ export default function AgreementDetailPage() {
       setHasShownSubmitted(false);
       // Ensure we're on the correct chain before transaction
       const ok = await ensureCorrectChain();
-      if (!ok) {
-        showToast("Please switch to Base Sepolia network to place bets", "warning");
-        return;
-      }
+      if (!ok) { return; }
       
       const amount = parseEther(betAmount);
       // Client-side gating: block if wallet balance < bet amount (value)
@@ -331,7 +317,6 @@ export default function AgreementDetailPage() {
           `Attempted amount: ${amtEth.toFixed(6)} ETH`,
         ];
         setBetError({ title: 'Insufficient funds', details: ["Insufficient ETH to cover the bet amount.", ...details] });
-        showToast("Insufficient ETH to cover the bet amount.", "error", 8000);
         
         return;
       }
@@ -365,7 +350,7 @@ export default function AgreementDetailPage() {
       console.error("Error placing bet:", err);
       
       // Show error toast for actual failures
-      showToast("Failed to place bet. Please try again.", "error", 8000);
+      // Toast removed
 
       // Build detailed state message for the modal
       const details: string[] = [];
@@ -410,10 +395,7 @@ export default function AgreementDetailPage() {
     try {
       // Ensure we're on the correct chain before transaction
       const ok = await ensureCorrectChain();
-      if (!ok) {
-        showToast("Please switch to Base Sepolia network to comment", "warning");
-        return;
-      }
+      if (!ok) { return; }
       
       setLastAction("comment");
       // Track transaction initiated for comment
@@ -441,9 +423,6 @@ export default function AgreementDetailPage() {
         console.log("User cancelled the comment transaction");
         return;
       }
-      
-      // Show error toast for actual failures
-      showToast("Failed to add comment. Please try again.", "error");
       
       // Only track actual failures (not user cancellations)
       trackDebateEvent(EVENTS.TRANSACTION_FAILED, {
@@ -528,9 +507,35 @@ export default function AgreementDetailPage() {
           winner={contract.winner}
         />
 
+        {/* Admin Controls removed */}
+
         {/* Countdown Timer */}
         {contract.status === 0 && (
-          <CountdownTimer endTime={contract.bettingEndTime} />
+          <CountdownTimer 
+            endTime={contract.bettingEndTime}
+            onEnd={() => {
+              if (endNotifiedRef.current) return;
+              endNotifiedRef.current = true;
+              try {
+                const urlBase = process.env.NEXT_PUBLIC_BACKEND_URL;
+                if (urlBase) {
+                  const url = `${urlBase}/api/oracle/contracts/${contractId}/ended`;
+                  void fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      contractId,
+                      endedAt: new Date().toISOString(),
+                      bettingEndTime: Number(contract.bettingEndTime ?? 0),
+                      chainId: baseSepolia.id,
+                    }),
+                  });
+                }
+              } catch (e) {
+                console.warn('Failed to notify backend about debate end', e);
+              }
+            }}
+          />
         )}
 
         {/* Connect Wallet CTA when not connected and open */}
@@ -749,8 +754,7 @@ export default function AgreementDetailPage() {
         </div>
       )}
 
-      {/* Toast Notifications */}
-      <ToastContainer />
+      {/* Toasts removed */}
     </div>
   );
 }
