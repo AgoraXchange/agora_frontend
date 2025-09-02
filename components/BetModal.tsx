@@ -20,6 +20,11 @@ interface BetModalProps {
   isCorrectChain: boolean;
   isSwitching: boolean;
   needsSwitch: boolean;
+  errorTitle?: string;
+  errorDetails?: string[];
+  onClearError?: () => void;
+  insufficientBalance?: boolean;
+  insufficientMessage?: string;
 }
 
 export function BetModal({
@@ -40,6 +45,11 @@ export function BetModal({
   isCorrectChain,
   isSwitching,
   needsSwitch,
+  errorTitle,
+  errorDetails,
+  onClearError,
+  insufficientBalance = false,
+  insufficientMessage = "Insufficient ETH to cover the bet amount.",
 }: BetModalProps) {
   const [showAmountStep, setShowAmountStep] = useState(false);
 
@@ -55,6 +65,7 @@ export function BetModal({
     onClose();
     setShowAmountStep(false);
     setSelectedSide(null);
+    onClearError?.();
   };
 
   const handleBack = () => {
@@ -209,13 +220,44 @@ export function BetModal({
                 </div>
               )}
 
+              {/* Insufficient balance warning */}
+              {insufficientBalance && (
+                <div className="mb-4 p-3 bg-red-900/30 border border-red-600 rounded-lg">
+                  <p className="text-red-300 text-sm text-center">
+                    {insufficientMessage}
+                  </p>
+                </div>
+              )}
+
+              {/* Error State Message */}
+              {errorTitle && (
+                <div className="mb-4 p-3 bg-red-900/30 border border-red-600 rounded-lg">
+                  <p className="text-red-300 text-sm font-medium mb-1">{errorTitle}</p>
+                  {Array.isArray(errorDetails) && errorDetails.length > 0 && (
+                    <ul className="list-disc list-inside text-red-200/90 text-xs space-y-0.5">
+                      {errorDetails.map((line, i) => (
+                        <li key={i}>{line}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+
               {/* Bet Button */}
               <button
                 onClick={onBet}
-                disabled={!betAmount || !isValidAmount() || isPending || isConfirming || !isCorrectChain || isSwitching}
+                disabled={!betAmount || !isValidAmount() || isPending || isConfirming || !isCorrectChain || isSwitching || insufficientBalance}
                 className="w-full bg-primary text-gray-1000 py-4 rounded-xl font-bold text-lg hover:bg-primary/90 disabled:bg-gray-800 disabled:text-gray-100 transition-colors"
               >
-                {isSwitching ? "Switching Network..." : isPending || isConfirming ? "Processing..." : needsSwitch ? "Wrong Network" : "Bet"}
+                {isSwitching 
+                  ? "Switching Network..." 
+                  : isPending || isConfirming 
+                  ? "Processing..." 
+                  : needsSwitch 
+                  ? "Wrong Network" 
+                  : insufficientBalance 
+                  ? "Insufficient ETH" 
+                  : "Bet"}
               </button>
 
               {/* Cancel Button */}

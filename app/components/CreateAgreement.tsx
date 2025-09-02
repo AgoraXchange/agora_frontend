@@ -22,6 +22,8 @@ export function CreateAgreement() {
   const [partyB, setPartyB] = useState("");
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isReady, setIsReady] = useState(false);
+  const [minBet, setMinBet] = useState<string>("0.001");
+  const [maxBet, setMaxBet] = useState<string>("0.1");
 
   useEffect(() => {
     // Short delay to ensure smooth transition
@@ -105,6 +107,21 @@ export function CreateAgreement() {
       return;
     }
 
+    // Validate bet limits
+    let minWei: bigint | null = null;
+    let maxWei: bigint | null = null;
+    try {
+      minWei = parseEther((minBet || '').trim());
+      maxWei = parseEther((maxBet || '').trim());
+      if (minWei <= BigInt(0) || maxWei <= BigInt(0) || minWei > maxWei) {
+        showToast("Invalid bet limits. Ensure min > 0 and max ≥ min.", "error");
+        return;
+      }
+    } catch {
+      showToast("Invalid bet limits. Use numeric ETH values (e.g., 0.001).", "error");
+      return;
+    }
+
     try {
       // Ensure we're on the correct chain before transaction
       const ok = await ensureCorrectChain();
@@ -125,8 +142,8 @@ export function CreateAgreement() {
           partyA,
           partyB,
           BigInt(1440), // Fixed 24 hours duration (1440 minutes)
-          parseEther("0.001"), // Fixed min bet
-          parseEther("0.1") // Fixed max bet
+          minWei, // User-defined min bet (validated)
+          maxWei  // User-defined max bet (validated)
         ],
         chainId: baseSepolia.id,
       });
@@ -145,7 +162,7 @@ export function CreateAgreement() {
       // Show error toast for actual failures
       showToast("Failed to create contract. Please try again.", "error");
     }
-  }, [isConnected, address, writeContract, topic, description, partyA, partyB, trackPageView, ensureCorrectChain, showToast]);
+  }, [isConnected, address, writeContract, topic, description, partyA, partyB, minBet, maxBet, trackPageView, ensureCorrectChain, showToast]);
 
   if (!isReady) {
     return (
@@ -268,13 +285,80 @@ export function CreateAgreement() {
             )}
           </div>
         </div>
+
+        {/* Bet Limits */}
+        <div className="mb-4">
+          <label className="block text-white text-lg font-medium mb-2">Bet Limits</label>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-gray-300 text-xs mb-1">Min Bet (ETH)</label>
+              <input
+                type="number"
+                value={minBet}
+                onChange={(e) => setMinBet(e.target.value)}
+                className={`w-full px-4 py-3 bg-gray-900 border rounded-xl text-white placeholder-gray-400 focus:outline-none transition-colors ${
+                  (() => {
+                    try {
+                      const v = parseEther((minBet || '').trim());
+                      return v > BigInt(0) ? 'border-gray-800 focus:border-primary' : 'border-red-500';
+                    } catch { return 'border-red-500'; }
+                  })()
+                }`}
+                placeholder="0.001"
+                step="0.001"
+                min="0"
+              />
+            </div>
+            <div>
+              <label className="block text-gray-300 text-xs mb-1">Max Bet (ETH)</label>
+              <input
+                type="number"
+                value={maxBet}
+                onChange={(e) => setMaxBet(e.target.value)}
+                className={`w-full px-4 py-3 bg-gray-900 border rounded-xl text-white placeholder-gray-400 focus:outline-none transition-colors ${
+                  (() => {
+                    try {
+                      const minV = parseEther((minBet || '').trim());
+                      const maxV = parseEther((maxBet || '').trim());
+                      return maxV >= minV && maxV > BigInt(0) ? 'border-gray-800 focus:border-primary' : 'border-red-500';
+                    } catch { return 'border-red-500'; }
+                  })()
+                }`}
+                placeholder="0.1"
+                step="0.001"
+                min="0"
+              />
+            </div>
+          </div>
+          {/* Inline validation messages */}
+          {(() => {
+            try {
+              const minV = parseEther((minBet || '').trim());
+              const maxV = parseEther((maxBet || '').trim());
+              if (minV <= BigInt(0)) return <p className="text-red-400 text-sm mt-2">Min bet must be greater than 0.</p>;
+              if (maxV <= BigInt(0)) return <p className="text-red-400 text-sm mt-2">Max bet must be greater than 0.</p>;
+              if (maxV < minV) return <p className="text-red-400 text-sm mt-2">Max bet must be greater than or equal to Min bet.</p>;
+              return null;
+            } catch {
+              return <p className="text-red-400 text-sm mt-2">Enter valid ETH amounts (e.g., 0.001).</p>;
+            }
+          })()}
+        </div>
       </div>
 
       {/* Post Button - Fixed at Bottom */}
       <div className="fixed bottom-0 left-0 right-0 bg-gray-1000 border-t border-gray-800 p-4">
         <button
           onClick={handleCreateContract}
-          disabled={!isConnected || isPending || isConfirming || isSwitching || !isCorrectChain || !topic.trim() || !description.trim() || !partyA.trim() || !partyB.trim()}
+          disabled={(() => {
+            if (!isConnected || isPending || isConfirming || isSwitching || !isCorrectChain || !topic.trim() || !description.trim() || !partyA.trim() || !partyB.trim()) return true;
+            try {
+              const minV = parseEther((minBet || '').trim());
+              const maxV = parseEther((maxBet || '').trim());
+              if (minV <= BigInt(0) || maxV <= BigInt(0) || maxV < minV) return true;
+              return false;
+            } catch { return true; }
+          })()}
           className="w-full bg-primary text-gray-1000 py-4 rounded-xl font-bold text-lg hover:bg-primary/90 disabled:bg-gray-800 disabled:text-gray-400 transition-colors"
         >
           {isSwitching ? "Switching Network..." : isPending || isConfirming ? "Creating..." : "Post"}

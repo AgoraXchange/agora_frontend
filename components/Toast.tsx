@@ -22,7 +22,7 @@ export function Toast({ message, type, duration = 3000, onClose }: ToastProps) {
   }, [duration, onClose]);
 
   const getToastStyles = () => {
-    const baseStyles = "fixed bottom-4 right-4 z-[200] max-w-sm w-full bg-gray-900 border rounded-lg p-4 shadow-lg transition-all duration-300";
+    const baseStyles = "fixed bottom-4 right-4 z-[10000] max-w-sm w-full bg-gray-900 border rounded-lg p-4 shadow-lg transition-all duration-300";
     
     switch (type) {
       case "success":
@@ -127,7 +127,7 @@ export function useToast() {
   };
 
   const ToastContainer = () => (
-    <div className="fixed bottom-4 right-4 z-[200] space-y-2">
+    <div className="fixed bottom-4 right-4 z-[10000] space-y-2">
       {toasts.map(toast => (
         <Toast
           key={toast.id}

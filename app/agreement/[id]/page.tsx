@@ -2,9 +2,9 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useConfig } from "wagmi";
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useConfig, useBalance } from "wagmi";
 import { baseSepolia } from "wagmi/chains";
-import { parseEther } from "viem";
+import { parseEther, formatEther } from "viem";
 import { readContract } from "@wagmi/core";
 import { AGREEMENT_FACTORY_ADDRESS, AGREEMENT_FACTORY_ABI } from "@/lib/agreementFactoryABI";
 import { BettingOptions } from "@/components/BettingOptions";
@@ -13,6 +13,7 @@ import { ResultSection } from "@/components/ResultSection";
 import { LiveDebateCard } from "@/components/LiveDebateCard";
 import { LiveDebateBottomSheet } from "@/components/LiveDebateBottomSheet";
 import { BetModal } from "@/components/BetModal";
+import { TxStatusModal } from "@/components/TxStatusModal";
 import type { Comment, Contract } from "@/types/contract";
 import { useAnalytics } from "@/lib/hooks/useAnalytics";
 import { EVENTS } from "@/lib/analytics";
@@ -26,8 +27,13 @@ export default function AgreementDetailPage() {
   const contractId = parseInt(params.id as string);
   
   const { isConnected, address } = useAccount();
+  const { data: balanceData } = useBalance({ address, chainId: baseSepolia.id, query: { enabled: !!address } });
   const { isCorrectChain, isSwitching, needsSwitch, ensureCorrectChain } = useEnsureChain(); // Auto switch to Base Sepolia
   const { showToast, ToastContainer } = useToast();
+  const [betError, setBetError] = useState<{ title: string; details: string[] } | null>(null);
+  const [hasShownSubmitted, setHasShownSubmitted] = useState(false);
+  const [txModalOpen, setTxModalOpen] = useState(false);
+  const [txPhase, setTxPhase] = useState<"signing" | "submitted" | "confirming" | "success" | "error">("signing");
   const [comment, setComment] = useState("");
   const [showBetModal, setShowBetModal] = useState(false);
   const [showLiveDebate, setShowLiveDebate] = useState(false);
@@ -70,7 +76,7 @@ export default function AgreementDetailPage() {
   });
 
   const { writeContract, data: hash, isPending, error } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+  const { isLoading: isConfirming, isSuccess, isError: isTxError, error: txError } = useWaitForTransactionReceipt({ hash });
 
   const contract = contractData as Contract;
   const comments = (commentsData as unknown as Comment[][])?.[0] || [];
@@ -160,6 +166,25 @@ export default function AgreementDetailPage() {
     if (isSuccess) {
       // Track transaction completed for last action
       if (lastAction === "bet") {
+        showToast("Bet confirmed on Base Sepolia", "success", 6000);
+        // Verify on-chain recorded amount for the latest bet (debug)
+        (async () => {
+          try {
+            if (!address) return;
+            const result = await readContract(config, {
+              address: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
+              abi: AGREEMENT_FACTORY_ABI,
+              functionName: "getUserBetsPaginated",
+              args: [BigInt(contractId), address as `0x${string}`, BigInt(0), BigInt(1)],
+            });
+            const [amounts] = result as readonly [readonly bigint[], readonly number[], readonly boolean[], bigint];
+            const lastAmount = (amounts && amounts.length > 0) ? amounts[0] : BigInt(0);
+            console.log('[Bet Debug] on-chain last bet amount (wei):', lastAmount.toString());
+          } catch (e) {
+            console.warn('[Bet Debug] failed to fetch on-chain bet amount:', e);
+          }
+        })();
+        showToast("Bet confirmed on Base Sepolia", "success", 6000);
         trackBetEvent(EVENTS.TRANSACTION_COMPLETED, {
           debate_id: String(contractId),
           side: selectedSide === 1 ? "A" : "B",
@@ -193,13 +218,60 @@ export default function AgreementDetailPage() {
       setBetAmount("0.001");
       setComment("");
       setLastAction(null);
+      setBetError(null);
+      setHasShownSubmitted(false);
+      setTxPhase("success");
     }
-  }, [isSuccess, refetchContract, refetchComments, refetchUserBet, lastAction, trackBetEvent, trackDebateEvent, contract?.topic, contract?.creator, contract?.status, betAmount, selectedSide, contractId]);
+  }, [isSuccess, refetchContract, refetchComments, refetchUserBet, lastAction, trackBetEvent, trackDebateEvent, contract?.topic, contract?.creator, contract?.status, betAmount, selectedSide, contractId, address, config]);
+
+  // Show explicit feedback when the transaction fails after submission
+  useEffect(() => {
+    if (isTxError) {
+      const msg = txError && txError instanceof Error ? txError.message : 'Transaction failed';
+      const details: string[] = [];
+      try {
+        const balEth = balanceData?.value ? Number(formatEther(balanceData.value)) : 0;
+        if (!Number.isNaN(balEth)) details.push(`Wallet balance: ${balEth.toFixed(6)} ETH`);
+      } catch {}
+      try {
+        if (contractData) {
+          const c = contractData as Contract;
+          if (typeof c.minBetAmount === 'bigint') details.push(`Min bet: ${Number(formatEther(c.minBetAmount)).toFixed(6)} ETH`);
+          if (typeof c.maxBetAmount === 'bigint') details.push(`Max bet: ${Number(formatEther(c.maxBetAmount)).toFixed(6)} ETH`);
+        }
+      } catch {}
+      details.push(`Reason: ${msg.length > 160 ? msg.slice(0,160) + '…' : msg}`);
+      setBetError({ title: 'Bet failed', details });
+      showToast('Bet failed. See details in the sheet.', 'error', 8000);
+      setTxPhase("error");
+      setTxModalOpen(true);
+      setHasShownSubmitted(false);
+    }
+  }, [isTxError, txError, contractData, balanceData, showToast]);
+
+  // Show a submitted state as soon as we get a hash (helps mini-app users)
+  useEffect(() => {
+    if (hash && !hasShownSubmitted) {
+      const short = typeof hash === 'string' ? `${hash.slice(0, 10)}…` : '';
+      showToast(`Transaction submitted ${short}`, 'info', 8000);
+      setTxPhase('submitted');
+      setTxModalOpen(true);
+      setHasShownSubmitted(true);
+    }
+  }, [hash, hasShownSubmitted, showToast]);
+
+  // Reflect confirming state in the modal
+  useEffect(() => {
+    if (isConfirming && txModalOpen) {
+      setTxPhase('confirming');
+    }
+  }, [isConfirming, txModalOpen]);
 
   // Track page view when contract data becomes available
   useEffect(() => {
     if (contractData) {
       const c = contractData as Contract;
+      console.log('[Bet Debug] contract minBetAmount (wei):', c.minBetAmount?.toString?.());
       trackPageView('agreement_detail', {
         debate_id: String(contractId),
         debate_topic: c.topic,
@@ -233,14 +305,32 @@ export default function AgreementDetailPage() {
     if (!selectedSide || !betAmount || !isConnected) return;
     
     try {
+      setHasShownSubmitted(false);
+      setTxModalOpen(true);
+      setTxPhase("signing");
       // Ensure we're on the correct chain before transaction
       const ok = await ensureCorrectChain();
       if (!ok) {
         showToast("Please switch to Base Sepolia network to place bets", "warning");
+        setTxModalOpen(false);
         return;
       }
       
       const amount = parseEther(betAmount);
+      // Client-side gating: block if wallet balance < bet amount (value)
+      if (balanceData?.value !== undefined && balanceData.value < amount) {
+        const balEth = Number(formatEther(balanceData.value));
+        const amtEth = Number(betAmount);
+        const details = [
+          `Wallet balance: ${balEth.toFixed(6)} ETH`,
+          `Attempted amount: ${amtEth.toFixed(6)} ETH`,
+        ];
+        setBetError({ title: 'Insufficient funds', details: ["Insufficient ETH to cover the bet amount.", ...details] });
+        showToast("Insufficient ETH to cover the bet amount.", "error", 8000);
+        setTxModalOpen(false);
+        return;
+      }
+      console.log('[Bet Debug] balance:', balanceData?.value?.toString(), 'betAmount (wei):', amount.toString());
       setLastAction("bet");
       // Track transaction initiated
       trackBetEvent(EVENTS.TRANSACTION_INITIATED, {
@@ -266,11 +356,39 @@ export default function AgreementDetailPage() {
           errorMessage.includes('User denied') || errorMessage.includes('user denied')) {
         // Don't track analytics for user rejections, it's a normal action
         console.log("User cancelled the betting transaction");
+        setTxModalOpen(false);
         return;
       }
       
       // Show error toast for actual failures
-      showToast("Failed to place bet. Please try again.", "error");
+      showToast("Failed to place bet. Please try again.", "error", 8000);
+
+      // Build detailed state message for the modal
+      const details: string[] = [];
+      try {
+        const balEth = balanceData?.value ? Number(formatEther(balanceData.value)) : 0;
+        const amtEth = Number(betAmount);
+        if (!Number.isNaN(balEth)) details.push(`Wallet balance: ${balEth.toFixed(6)} ETH`);
+        if (!Number.isNaN(amtEth)) details.push(`Attempted amount: ${amtEth.toFixed(6)} ETH`);
+      } catch {}
+      try {
+        if (contractData) {
+          const c = contractData as Contract;
+          if (typeof c.minBetAmount === 'bigint') {
+            details.push(`Min bet: ${Number(formatEther(c.minBetAmount)).toFixed(6)} ETH`);
+          }
+          if (typeof c.maxBetAmount === 'bigint') {
+            details.push(`Max bet: ${Number(formatEther(c.maxBetAmount)).toFixed(6)} ETH`);
+          }
+          const statusText = c.status === 0 ? 'open' : c.status === 1 ? 'closed' : 'resolved';
+          details.push(`Contract status: ${statusText}`);
+        }
+      } catch {}
+      // Add a compact reason from RPC error
+      const compact = errorMessage.length > 160 ? errorMessage.slice(0, 160) + '…' : errorMessage;
+      details.push(`Reason: ${compact}`);
+      setBetError({ title: 'Bet failed', details });
+      setTxPhase("error");
       
       // Only track actual failures (not user cancellations)
       trackBetEvent(EVENTS.TRANSACTION_FAILED, {
@@ -590,6 +708,11 @@ export default function AgreementDetailPage() {
         isCorrectChain={isCorrectChain}
         isSwitching={isSwitching}
         needsSwitch={needsSwitch}
+        errorTitle={betError?.title}
+        errorDetails={betError?.details}
+        onClearError={() => setBetError(null)}
+        insufficientBalance={(() => { try { const a = parseEther(betAmount); return balanceData?.value !== undefined && balanceData.value < a; } catch { return true; } })()}
+        insufficientMessage="Insufficient ETH to cover the bet amount."
       />
 
       {/* Error message */}
@@ -616,6 +739,17 @@ export default function AgreementDetailPage() {
 
       {/* Toast Notifications */}
       <ToastContainer />
+
+      {/* Global Tx Status Modal for mini-app visibility */}
+      <TxStatusModal
+        isOpen={txModalOpen}
+        phase={txPhase}
+        hash={typeof hash === 'string' ? hash : undefined}
+        network="base-sepolia"
+        errorTitle={betError?.title}
+        errorDetails={betError?.details}
+        onClose={() => setTxModalOpen(false)}
+      />
     </div>
   );
 }

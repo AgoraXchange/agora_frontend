@@ -17,4 +17,7 @@ export interface Contract {
   bettingEndTime: bigint;
   status: number;
   winner: number;
+  // Optional fields exposed by ABI but not always used in UI
+  minBetAmount?: bigint;
+  maxBetAmount?: bigint;
 }
