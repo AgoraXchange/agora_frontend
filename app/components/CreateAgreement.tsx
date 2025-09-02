@@ -9,12 +9,12 @@ import { useRouter } from "next/navigation";
 import { useAnalytics } from "@/lib/hooks/useAnalytics";
 import { EVENTS } from "@/lib/analytics";
 import { useEnsureChain } from "@/lib/hooks/useEnsureChain";
-import { useToast } from "@/components/Toast";
+// Toasts removed
 
 export function CreateAgreement() {
   const { address, isConnected } = useAccount();
   const { isCorrectChain, isSwitching, needsSwitch, ensureCorrectChain } = useEnsureChain(); // Auto switch to Base Sepolia
-  const { showToast, ToastContainer } = useToast();
+  // Toasts removed
   const router = useRouter();
   const [topic, setTopic] = useState("");
   const [description, setDescription] = useState("");
@@ -87,22 +87,7 @@ export function CreateAgreement() {
         status: "open",
       });
 
-      // Fire Telegram webhook (server-side) without exposing tokens
-      try {
-        const openUrl = (process.env.NEXT_PUBLIC_URL || '') as string;
-        void fetch('/api/telegram', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'debate_created',
-            topic,
-            creator: address,
-            url: openUrl || null,
-          }),
-        });
-      } catch (e) {
-        console.warn('Telegram notification failed:', e);
-      }
+      // Telegram webhook trigger removed by request
     }
   }, [isSuccess, trackDebateEvent, topic, address]);
 
@@ -142,11 +127,11 @@ export function CreateAgreement() {
       minWei = parseEther((minBet || '').trim());
       maxWei = parseEther((maxBet || '').trim());
       if (minWei <= BigInt(0) || maxWei <= BigInt(0) || minWei > maxWei) {
-        showToast("Invalid bet limits. Ensure min > 0 and max ≥ min.", "error");
+        // Toast removed
         return;
       }
     } catch {
-      showToast("Invalid bet limits. Use numeric ETH values (e.g., 0.001).", "error");
+      // Toast removed
       return;
     }
 
@@ -154,29 +139,20 @@ export function CreateAgreement() {
     let durationMinutes: number = 24 * 60;
     try {
       const ts = new Date((bettingEnd || '').trim()).getTime();
-      if (!Number.isFinite(ts)) {
-        showToast("Enter a valid end date/time.", "error");
-        return;
-      }
+      if (!Number.isFinite(ts)) { return; }
       const diffMs = ts - Date.now();
       const minutes = Math.ceil(diffMs / 60000);
-      if (minutes < 1) {
-        showToast("End time must be in the future.", "error");
-        return;
-      }
+      if (minutes < 1) { return; }
       durationMinutes = minutes;
     } catch {
-      showToast("Enter a valid end date/time.", "error");
+      // Toast removed
       return;
     }
 
     try {
       // Ensure we're on the correct chain before transaction
       const ok = await ensureCorrectChain();
-      if (!ok) {
-        showToast("Please switch to Base Sepolia network first", "warning");
-        return;
-      }
+      if (!ok) { return; }
       
       // Track create button click (page view again optional)
       trackPageView('create_submit');
@@ -206,10 +182,9 @@ export function CreateAgreement() {
       }
       console.error("Error creating contract:", err);
       
-      // Show error toast for actual failures
-      showToast("Failed to create contract. Please try again.", "error");
+      // Toast removed
     }
-  }, [isConnected, address, writeContract, topic, description, partyA, partyB, minBet, maxBet, trackPageView, ensureCorrectChain, showToast]);
+  }, [isConnected, address, writeContract, topic, description, partyA, partyB, minBet, maxBet, trackPageView, ensureCorrectChain]);
 
   if (!isReady) {
     return (
@@ -472,8 +447,7 @@ export function CreateAgreement() {
         </div>
       )}
 
-      {/* Toast Notifications */}
-      <ToastContainer />
+      {/* Toasts removed */}
     </div>
   );
 }
