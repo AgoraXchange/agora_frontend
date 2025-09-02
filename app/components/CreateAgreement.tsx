@@ -9,12 +9,12 @@ import { useRouter } from "next/navigation";
 import { useAnalytics } from "@/lib/hooks/useAnalytics";
 import { EVENTS } from "@/lib/analytics";
 import { useEnsureChain } from "@/lib/hooks/useEnsureChain";
-import { useToast } from "@/components/Toast";
+// Toasts removed
 
 export function CreateAgreement() {
   const { address, isConnected } = useAccount();
   const { isCorrectChain, isSwitching, needsSwitch, ensureCorrectChain } = useEnsureChain(); // Auto switch to Base Sepolia
-  const { showToast, ToastContainer } = useToast();
+  // Toasts removed
   const router = useRouter();
   const [topic, setTopic] = useState("");
   const [description, setDescription] = useState("");
@@ -22,8 +22,9 @@ export function CreateAgreement() {
   const [partyB, setPartyB] = useState("");
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isReady, setIsReady] = useState(false);
-  const [minBet, setMinBet] = useState<string>("0.001");
+  const [minBet, setMinBet] = useState<string>("0.0002");
   const [maxBet, setMaxBet] = useState<string>("0.1");
+  // Betting end time input removed; default duration is fixed (24h)
 
   useEffect(() => {
     // Short delay to ensure smooth transition
@@ -76,9 +77,9 @@ export function CreateAgreement() {
         status: "open",
       });
 
-      // Fire Telegram webhook (server-side) without exposing tokens
+      // Notify Telegram bot (server-side route)
       try {
-        const openUrl = (process.env.NEXT_PUBLIC_URL || '') as string;
+        const appUrl = (process.env.NEXT_PUBLIC_URL || '') as string;
         void fetch('/api/telegram', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -86,11 +87,11 @@ export function CreateAgreement() {
             type: 'debate_created',
             topic,
             creator: address,
-            url: openUrl || null,
+            url: appUrl || null,
           }),
         });
       } catch (e) {
-        console.warn('Telegram notification failed:', e);
+        console.warn('Telegram notification (debate_created) failed:', e);
       }
     }
   }, [isSuccess, trackDebateEvent, topic, address]);
@@ -130,22 +131,46 @@ export function CreateAgreement() {
     try {
       minWei = parseEther((minBet || '').trim());
       maxWei = parseEther((maxBet || '').trim());
-      if (minWei <= BigInt(0) || maxWei <= BigInt(0) || minWei > maxWei) {
-        showToast("Invalid bet limits. Ensure min > 0 and max ≥ min.", "error");
+      
+      // Contract validation rules:
+      // - minBetAmount must be > 0
+      // - maxBetAmount must be >= minBetAmount
+      // - Default limits: 0.0002 ETH min, 100 ETH max
+      const MIN_ALLOWED = parseEther("0.0002"); // Contract's defaultMinBet
+      const MAX_ALLOWED = parseEther("100"); // Contract's defaultMaxBet
+      
+      if (minWei <= BigInt(0)) {
+        alert("Minimum bet must be greater than 0");
+        return;
+      }
+      if (minWei < MIN_ALLOWED) {
+        alert(`Minimum bet must be at least 0.0002 ETH`);
+        return;
+      }
+      if (maxWei <= BigInt(0)) {
+        alert("Maximum bet must be greater than 0");
+        return;
+      }
+      if (maxWei > MAX_ALLOWED) {
+        alert(`Maximum bet cannot exceed 100 ETH`);
+        return;
+      }
+      if (minWei > maxWei) {
+        alert("Maximum bet must be greater than or equal to minimum bet");
         return;
       }
     } catch {
-      showToast("Invalid bet limits. Use numeric ETH values (e.g., 0.001).", "error");
+      alert("Please enter valid ETH amounts");
       return;
     }
+
+    // Use fixed duration (24 hours)
+    const durationMinutes: number = 24 * 60;
 
     try {
       // Ensure we're on the correct chain before transaction
       const ok = await ensureCorrectChain();
-      if (!ok) {
-        showToast("Please switch to Base Sepolia network first", "warning");
-        return;
-      }
+      if (!ok) { return; }
       
       // Track create button click (page view again optional)
       trackPageView('create_submit');
@@ -158,7 +183,7 @@ export function CreateAgreement() {
           description,
           partyA,
           partyB,
-          BigInt(1440), // Fixed 24 hours duration (1440 minutes)
+          BigInt(durationMinutes), // Fixed 24 hours
           minWei, // User-defined min bet (validated)
           maxWei  // User-defined max bet (validated)
         ],
@@ -175,10 +200,9 @@ export function CreateAgreement() {
       }
       console.error("Error creating contract:", err);
       
-      // Show error toast for actual failures
-      showToast("Failed to create contract. Please try again.", "error");
+      // Toast removed
     }
-  }, [isConnected, address, writeContract, topic, description, partyA, partyB, minBet, maxBet, trackPageView, ensureCorrectChain, showToast]);
+  }, [isConnected, address, writeContract, topic, description, partyA, partyB, minBet, maxBet, trackPageView, ensureCorrectChain]);
 
   if (!isReady) {
     return (
@@ -217,6 +241,8 @@ export function CreateAgreement() {
   return (
     <div className="bg-gray-1000 min-h-screen flex flex-col">
       <div className="flex-1 px-4 pt-4 pb-24">
+        {/* Betting End Time input removed */}
+
         {/* Title Field */}
         <div className="mb-4">
           <label className="block text-white text-lg font-medium mb-2">Title</label>
@@ -316,13 +342,14 @@ export function CreateAgreement() {
                   (() => {
                     try {
                       const v = parseEther((minBet || '').trim());
-                      return v > BigInt(0) ? 'border-gray-800 focus:border-primary' : 'border-red-500';
+                      const MIN_ALLOWED = parseEther("0.0002");
+                      return v >= MIN_ALLOWED ? 'border-gray-800 focus:border-primary' : 'border-red-500';
                     } catch { return 'border-red-500'; }
                   })()
                 }`}
-                placeholder="0.001"
-                step="0.001"
-                min="0"
+                placeholder="0.0002"
+                step="0.0001"
+                min="0.0002"
               />
             </div>
             <div>
@@ -336,13 +363,15 @@ export function CreateAgreement() {
                     try {
                       const minV = parseEther((minBet || '').trim());
                       const maxV = parseEther((maxBet || '').trim());
-                      return maxV >= minV && maxV > BigInt(0) ? 'border-gray-800 focus:border-primary' : 'border-red-500';
+                      const MAX_ALLOWED = parseEther("100");
+                      return maxV >= minV && maxV > BigInt(0) && maxV <= MAX_ALLOWED ? 'border-gray-800 focus:border-primary' : 'border-red-500';
                     } catch { return 'border-red-500'; }
                   })()
                 }`}
                 placeholder="0.1"
                 step="0.001"
-                min="0"
+                min="0.0002"
+                max="100"
               />
             </div>
           </div>
@@ -351,9 +380,13 @@ export function CreateAgreement() {
             try {
               const minV = parseEther((minBet || '').trim());
               const maxV = parseEther((maxBet || '').trim());
-              if (minV <= BigInt(0)) return <p className="text-red-400 text-sm mt-2">Min bet must be greater than 0.</p>;
+              const MIN_ALLOWED = parseEther("0.0002");
+              const MAX_ALLOWED = parseEther("100");
+              
+              if (minV < MIN_ALLOWED) return <p className="text-red-400 text-sm mt-2">Min bet must be at least 0.0002 ETH.</p>;
               if (maxV <= BigInt(0)) return <p className="text-red-400 text-sm mt-2">Max bet must be greater than 0.</p>;
-              if (maxV < minV) return <p className="text-red-400 text-sm mt-2">Max bet must be greater than or equal to Min bet.</p>;
+              if (maxV > MAX_ALLOWED) return <p className="text-red-400 text-sm mt-2">Max bet cannot exceed 100 ETH.</p>;
+              if (maxV < minV) return <p className="text-red-400 text-sm mt-2">Max bet must be at least {minBet} ETH.</p>;
               return null;
             } catch {
               return <p className="text-red-400 text-sm mt-2">Enter valid ETH amounts (e.g., 0.001).</p>;
@@ -371,7 +404,10 @@ export function CreateAgreement() {
             try {
               const minV = parseEther((minBet || '').trim());
               const maxV = parseEther((maxBet || '').trim());
-              if (minV <= BigInt(0) || maxV <= BigInt(0) || maxV < minV) return true;
+              const MIN_ALLOWED = parseEther("0.0002");
+              const MAX_ALLOWED = parseEther("100");
+              
+              if (minV < MIN_ALLOWED || maxV <= BigInt(0) || maxV > MAX_ALLOWED || maxV < minV) return true;
               return false;
             } catch { return true; }
           })()}
@@ -416,8 +452,7 @@ export function CreateAgreement() {
         </div>
       )}
 
-      {/* Toast Notifications */}
-      <ToastContainer />
+      {/* Toasts removed */}
     </div>
   );
 }
