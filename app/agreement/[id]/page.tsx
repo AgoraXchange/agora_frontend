@@ -36,7 +36,7 @@ export default function AgreementDetailPage() {
   const [showLiveDebate, setShowLiveDebate] = useState(false);
   const [selectedSide, setSelectedSide] = useState<1 | 2 | null>(null);
   const [betAmount, setBetAmount] = useState("0.001");
-  const [lastAction, setLastAction] = useState<"bet" | "comment" | "admin_close" | null>(null);
+  const [lastAction, setLastAction] = useState<"bet" | "comment" | null>(null);
   const { trackDebateEvent, trackBetEvent, trackPageView } = useAnalytics();
   const [winnerArguments, setWinnerArguments] = useState<
     | {
@@ -92,9 +92,7 @@ export default function AgreementDetailPage() {
   // Get wagmi config
   const config = useConfig();
   
-  // Admin scheduling state
-  const scheduleTimerRef = useRef<number | null>(null);
-  const [scheduledCloseAt, setScheduledCloseAt] = useState<string>("");
+  // Admin controls removed
   
   // State to store commenter sides
   const [commenterSides, setCommenterSides] = useState<Map<string, number>>(new Map());
@@ -221,13 +219,6 @@ export default function AgreementDetailPage() {
           status: (contract?.status === 0 ? "open" : contract?.status === 1 ? "closed" : "resolved"),
         });
         // Telegram webhook trigger removed by request
-      } else if (lastAction === "admin_close") {
-        trackDebateEvent(EVENTS.TRANSACTION_COMPLETED, {
-          debate_id: String(contractId),
-          debate_topic: contract?.topic || "",
-          creator: contract?.creator || "",
-          status: 'closed',
-        });
       }
 
       refetchContract();
@@ -433,9 +424,6 @@ export default function AgreementDetailPage() {
         return;
       }
       
-      // Show error toast for actual failures
-      showToast("Failed to add comment. Please try again.", "error");
-      
       // Only track actual failures (not user cancellations)
       trackDebateEvent(EVENTS.TRANSACTION_FAILED, {
         debate_id: String(contractId),
@@ -519,111 +507,7 @@ export default function AgreementDetailPage() {
           winner={contract.winner}
         />
 
-        {/* Admin Controls: Time settings (creator-only when open) */}
-        {isConnected && address && contract.status === 0 && address.toLowerCase() === contract.creator.toLowerCase() && (
-          <div className="mt-6 mb-8 p-4 border border-gray-800 rounded-xl bg-gray-900">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-white font-semibold">Admin Controls</h3>
-              <span className="text-xs text-gray-400">Creator-only</span>
-            </div>
-            <div className="text-sm text-gray-100 mb-4">
-              <div>
-                Current end time: {(() => { try { const ts = Number(contract.bettingEndTime) * 1000; return new Date(ts).toLocaleString(); } catch { return '-'; } })()}
-              </div>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <label className="block text-xs text-gray-400 mb-1">Schedule close at</label>
-                <input
-                  type="datetime-local"
-                  value={scheduledCloseAt}
-                  onChange={(e) => setScheduledCloseAt(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white"
-                />
-                <p className="text-xs text-gray-500 mt-1">Browser must stay open for scheduled close.</p>
-              </div>
-              <div className="flex flex-col gap-2 justify-end">
-                <button
-                  onClick={async () => {
-                    try {
-                      const ok = await ensureCorrectChain();
-                      if (!ok) { return; }
-                      setLastAction("admin_close");
-                      await writeContract({
-                        address: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
-                        abi: AGREEMENT_FACTORY_ABI,
-                        functionName: "closeBetting",
-                        args: [BigInt(contractId)],
-                        chainId: baseSepolia.id,
-                      });
-                    } catch (err) {
-                      const msg = err instanceof Error ? err.message : String(err);
-                      if (/user rejected|user denied/i.test(msg)) return;
-                      // Toast removed
-                    }
-                  }}
-                  disabled={isPending || isConfirming || isSwitching}
-                  className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-700 text-white font-semibold py-2 rounded-lg"
-                >
-                  {isSwitching ? "Switching Network..." : (isPending || isConfirming) ? "Processing..." : "Close Betting Now"}
-                </button>
-                <button
-                  onClick={() => {
-                    try {
-                      if (!scheduledCloseAt) { return; }
-                      const target = new Date(scheduledCloseAt).getTime();
-                      const delay = target - Date.now();
-                      if (!Number.isFinite(delay)) { return; }
-                      if (delay <= 0) {
-                        // immediate
-                        (async () => {
-                          try {
-                            const ok = await ensureCorrectChain();
-                            if (!ok) { return; }
-                            setLastAction("admin_close");
-                            await writeContract({
-                              address: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
-                              abi: AGREEMENT_FACTORY_ABI,
-                              functionName: "closeBetting",
-                              args: [BigInt(contractId)],
-                              chainId: baseSepolia.id,
-                            });
-                          } catch (e) { console.error(e); }
-                        })();
-                        return;
-                      }
-                      if (scheduleTimerRef.current) window.clearTimeout(scheduleTimerRef.current);
-                      const id = window.setTimeout(async () => {
-                        try {
-                          const ok = await ensureCorrectChain();
-                          if (!ok) { return; }
-                          setLastAction("admin_close");
-                          await writeContract({
-                            address: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
-                            abi: AGREEMENT_FACTORY_ABI,
-                            functionName: "closeBetting",
-                            args: [BigInt(contractId)],
-                            chainId: baseSepolia.id,
-                          });
-                        } catch (e) {
-                          console.error("Scheduled close failed", e);
-                        }
-                      }, delay);
-                      scheduleTimerRef.current = id;
-                      // Toast removed
-                    } catch {
-                      // Toast removed
-                    }
-                  }}
-                  disabled={isPending || isConfirming || isSwitching}
-                  className="w-full bg-gray-700 hover:bg-gray-600 disabled:bg-gray-700 text-white font-semibold py-2 rounded-lg"
-                >
-                  Schedule Close
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Admin Controls removed */}
 
         {/* Countdown Timer */}
         {contract.status === 0 && (

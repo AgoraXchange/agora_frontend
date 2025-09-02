@@ -24,17 +24,7 @@ export function CreateAgreement() {
   const [isReady, setIsReady] = useState(false);
   const [minBet, setMinBet] = useState<string>("0.001");
   const [maxBet, setMaxBet] = useState<string>("0.1");
-  const [bettingEnd, setBettingEnd] = useState<string>(() => {
-    try {
-      const d = new Date(Date.now() + 24 * 60 * 60 * 1000);
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const dd = String(d.getDate()).padStart(2, '0');
-      const hh = String(d.getHours()).padStart(2, '0');
-      const mi = String(d.getMinutes()).padStart(2, '0');
-      return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
-    } catch { return ""; }
-  });
+  // Betting end time input removed; default duration is fixed (24h)
 
   useEffect(() => {
     // Short delay to ensure smooth transition
@@ -135,19 +125,8 @@ export function CreateAgreement() {
       return;
     }
 
-    // Validate and compute betting duration in minutes from end datetime
-    let durationMinutes: number = 24 * 60;
-    try {
-      const ts = new Date((bettingEnd || '').trim()).getTime();
-      if (!Number.isFinite(ts)) { return; }
-      const diffMs = ts - Date.now();
-      const minutes = Math.ceil(diffMs / 60000);
-      if (minutes < 1) { return; }
-      durationMinutes = minutes;
-    } catch {
-      // Toast removed
-      return;
-    }
+    // Use fixed duration (24 hours)
+    const durationMinutes: number = 24 * 60;
 
     try {
       // Ensure we're on the correct chain before transaction
@@ -165,7 +144,7 @@ export function CreateAgreement() {
           description,
           partyA,
           partyB,
-          BigInt(durationMinutes), // Duration derived from selected end time
+          BigInt(durationMinutes), // Fixed 24 hours
           minWei, // User-defined min bet (validated)
           maxWei  // User-defined max bet (validated)
         ],
@@ -223,28 +202,7 @@ export function CreateAgreement() {
   return (
     <div className="bg-gray-1000 min-h-screen flex flex-col">
       <div className="flex-1 px-4 pt-4 pb-24">
-        {/* End Time */}
-        <div className="mb-4">
-          <label className="block text-white text-lg font-medium mb-2">Betting End Time</label>
-          <input
-            type="datetime-local"
-            value={bettingEnd}
-            onChange={(e) => setBettingEnd(e.target.value)}
-            className="w-full px-4 py-3 bg-gray-900 border border-gray-800 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-primary transition-colors"
-          />
-          {(() => {
-            try {
-              const ts = new Date((bettingEnd || '').trim()).getTime();
-              if (!bettingEnd) return <p className="text-gray-400 text-sm mt-2">Default is 24h from now.</p>;
-              if (!Number.isFinite(ts)) return <p className="text-red-400 text-sm mt-2">Enter a valid date/time.</p>;
-              if (ts <= Date.now()) return <p className="text-red-400 text-sm mt-2">End time must be in the future.</p>;
-              const mins = Math.ceil((ts - Date.now()) / 60000);
-              return <p className="text-gray-400 text-sm mt-2">Duration: ~{mins} min</p>;
-            } catch {
-              return null;
-            }
-          })()}
-        </div>
+        {/* Betting End Time input removed */}
 
         {/* Title Field */}
         <div className="mb-4">
@@ -401,8 +359,6 @@ export function CreateAgreement() {
               const minV = parseEther((minBet || '').trim());
               const maxV = parseEther((maxBet || '').trim());
               if (minV <= BigInt(0) || maxV <= BigInt(0) || maxV < minV) return true;
-              const ts = new Date((bettingEnd || '').trim()).getTime();
-              if (!Number.isFinite(ts) || ts <= Date.now()) return true;
               return false;
             } catch { return true; }
           })()}
