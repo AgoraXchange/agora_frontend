@@ -3,7 +3,6 @@ import mixpanel from 'mixpanel-browser';
 const MIXPANEL_TOKEN = process.env.NEXT_PUBLIC_MIXPANEL_TOKEN;
 const MIXPANEL_API_HOST = process.env.NEXT_PUBLIC_MIXPANEL_API_HOST; // e.g. https://api-eu.mixpanel.com
 const DISABLE_IP = process.env.NEXT_PUBLIC_MIXPANEL_DISABLE_IP === 'true';
-const ENABLE_DEV = process.env.NEXT_PUBLIC_ENABLE_ANALYTICS_DEV === 'true';
 const DEFAULT_OPT_IN = process.env.NEXT_PUBLIC_ANALYTICS_DEFAULT_OPT_IN === 'true';
 const CONSENT_KEY = 'agora:analytics-consent';
 
