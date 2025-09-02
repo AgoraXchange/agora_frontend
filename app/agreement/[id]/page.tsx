@@ -205,6 +205,26 @@ export default function AgreementDetailPage() {
           creator: contract?.creator || "",
           status: (contract?.status === 0 ? "open" : contract?.status === 1 ? "closed" : "resolved"),
         });
+
+        // Fire Telegram webhook for new comment
+        try {
+          const openUrl = (process.env.NEXT_PUBLIC_URL || '') as string;
+          const deepLink = openUrl ? `${openUrl}/agreement/${contractId}` : null;
+          void fetch('/api/telegram', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'comment_created',
+              contractId,
+              topic: contract?.topic || '',
+              commenter: address,
+              content: comment,
+              url: deepLink,
+            }),
+          });
+        } catch (e) {
+          console.warn('Telegram notification for comment failed:', e);
+        }
       }
 
       refetchContract();

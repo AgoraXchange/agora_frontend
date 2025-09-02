@@ -85,6 +85,23 @@ MIXPANEL_TOKEN=YOUR_MIXPANEL_SERVER_TOKEN
 
 Client events are proxied through Next.js at `/mp/*` to avoid CORS/adblock issues.
 
+### Telegram Notifications
+
+Send Telegram notifications for new debates and comments.
+
+1) Create a Telegram bot and get the token from @BotFather.
+
+2) Get a `chat_id` (user, group, or channel):
+- For a group, add the bot to the group and use tools like @RawDataBot, or call `getUpdates` from your bot after sending a message in the group.
+
+3) Add the following environment variables:
+```
+TELEGRAM_BOT_TOKEN=1234567890:ABCDEF_your_bot_token
+TELEGRAM_CHAT_ID=YOUR_CHAT_OR_CHANNEL_ID
+```
+
+4) On successful debate creation and comment submission, the app calls `/api/telegram` to send a message. If you want to customize the message, edit `app/api/telegram/route.ts`.
+
 ## Template Features
 
 ### Frame Configuration

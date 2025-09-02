@@ -75,6 +75,23 @@ export function CreateAgreement() {
         creator: address || "",
         status: "open",
       });
+
+      // Fire Telegram webhook (server-side) without exposing tokens
+      try {
+        const openUrl = (process.env.NEXT_PUBLIC_URL || '') as string;
+        void fetch('/api/telegram', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'debate_created',
+            topic,
+            creator: address,
+            url: openUrl || null,
+          }),
+        });
+      } catch (e) {
+        console.warn('Telegram notification failed:', e);
+      }
     }
   }, [isSuccess, trackDebateEvent, topic, address]);
 
