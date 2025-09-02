@@ -482,7 +482,13 @@ export default function AgreementDetailPage() {
           />
           <span>{contract.creator.slice(0, 6)}...{contract.creator.slice(-4)}</span>
           <span className="text-gray-800">•</span>
-          <span>{new Date().toLocaleDateString()}</span>
+          <span>
+            {(() => {
+              // Calculate creation time: bettingEndTime - 24 hours (fixed duration)
+              const creationTime = Number(contract.bettingEndTime) - (24 * 60 * 60);
+              return new Date(creationTime * 1000).toLocaleDateString();
+            })()}
+          </span>
         </div>
 
         {/* Title */}
@@ -722,6 +728,8 @@ export default function AgreementDetailPage() {
         onClearError={() => setBetError(null)}
         insufficientBalance={(() => { try { const a = parseEther(betAmount); return balanceData?.value !== undefined && balanceData.value < a; } catch { return true; } })()}
         insufficientMessage="Insufficient ETH to cover the bet amount."
+        minBet={contract.minBetAmount ? formatEther(contract.minBetAmount) : "0.0002"}
+        maxBet={contract.maxBetAmount ? formatEther(contract.maxBetAmount) : "100"}
       />
 
       {/* Error message (hide benign user-rejected errors) */}
