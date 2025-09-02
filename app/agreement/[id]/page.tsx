@@ -218,7 +218,25 @@ export default function AgreementDetailPage() {
           creator: contract?.creator || "",
           status: (contract?.status === 0 ? "open" : contract?.status === 1 ? "closed" : "resolved"),
         });
-        // Telegram webhook trigger removed by request
+        // Notify Telegram bot (comment_created)
+        try {
+          const openUrl = (process.env.NEXT_PUBLIC_URL || '') as string;
+          const deepLink = openUrl ? `${openUrl}/agreement/${contractId}` : null;
+          void fetch('/api/telegram', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'comment_created',
+              contractId,
+              topic: contract?.topic || '',
+              commenter: address,
+              content: comment,
+              url: deepLink,
+            }),
+          });
+        } catch (e) {
+          console.warn('Telegram notification (comment_created) failed:', e);
+        }
       }
 
       refetchContract();
@@ -727,7 +745,6 @@ export default function AgreementDetailPage() {
         errorDetails={betError?.details}
         onClearError={() => setBetError(null)}
         insufficientBalance={(() => { try { const a = parseEther(betAmount); return balanceData?.value !== undefined && balanceData.value < a; } catch { return true; } })()}
-        insufficientMessage="Insufficient ETH to cover the bet amount."
         minBet={contract.minBetAmount ? formatEther(contract.minBetAmount) : "0.0002"}
         maxBet={contract.maxBetAmount ? formatEther(contract.maxBetAmount) : "100"}
       />
