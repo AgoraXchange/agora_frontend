@@ -29,10 +29,11 @@ export const initMixpanel = () => {
       ip: DISABLE_IP ? false : undefined,
       opt_out_tracking_by_default: true,
       loaded: () => {
-        // Respect saved consent; optionally opt-in by default in dev/previews
+        // Respect saved consent; proactively opt-in in development if a token exists
         try {
           const saved = typeof window !== 'undefined' ? window.localStorage.getItem(CONSENT_KEY) : null;
-          if (saved === 'true' || (!saved && DEFAULT_OPT_IN && process.env.NODE_ENV !== 'production')) {
+          const isDev = process.env.NODE_ENV !== 'production';
+          if (saved === 'true' || (!saved && (DEFAULT_OPT_IN || isDev))) {
             mixpanel.opt_in_tracking();
             if (typeof window !== 'undefined') window.localStorage.setItem(CONSENT_KEY, 'true');
           }
@@ -57,7 +58,8 @@ export const getMixpanel = () => {
 };
 
 export const isAnalyticsEnabled = () => {
-  return Boolean(MIXPANEL_TOKEN) && (process.env.NODE_ENV === 'production' || ENABLE_DEV);
+  // Enable analytics whenever a token is present; consent gate handled above
+  return Boolean(MIXPANEL_TOKEN);
 };
 
 export const registerSuperProperties = (props: Record<string, unknown>) => {

@@ -77,7 +77,22 @@ export function CreateAgreement() {
         status: "open",
       });
 
-      // Telegram webhook trigger removed by request
+      // Notify Telegram bot (server-side route)
+      try {
+        const appUrl = (process.env.NEXT_PUBLIC_URL || '') as string;
+        void fetch('/api/telegram', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'debate_created',
+            topic,
+            creator: address,
+            url: appUrl || null,
+          }),
+        });
+      } catch (e) {
+        console.warn('Telegram notification (debate_created) failed:', e);
+      }
     }
   }, [isSuccess, trackDebateEvent, topic, address]);
 
