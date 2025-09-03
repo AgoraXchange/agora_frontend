@@ -77,7 +77,8 @@ Critical environment variables that must be set:
 - `NEXT_PUBLIC_ONCHAINKIT_API_KEY` - OnchainKit API access
 - `NEXT_PUBLIC_URL` - Application URL for frame metadata
 - `REDIS_URL` & `REDIS_TOKEN` - Upstash Redis connection (required for notifications)
- - `NEXT_PUBLIC_MIXPANEL_TOKEN` - Mixpanel project token for analytics (optional, analytics disabled if not set)
+ - `NEXT_PUBLIC_MIXPANEL_TOKEN` - Mixpanel project token for analytics (required to enable client events)
+ - `NEXT_PUBLIC_ANALYTICS_DEFAULT_OPT_IN` - Default client opt-in behavior. In development, analytics opt-in by default when a token is set. In production, analytics are opt-out by default unless the user has previously consented or this is set to `true`.
  - `MIXPANEL_TOKEN` - Server-side Mixpanel token (optional; falls back to NEXT_PUBLIC_MIXPANEL_TOKEN)
 - Frame metadata variables (`FARCASTER_*`) - Generated via `npx create-onchain --manifest`
 
