@@ -74,11 +74,20 @@ npm run dev
 
 ### Analytics (Mixpanel)
 
-Client-side analytics is initialized, but is disabled by default in development. To test events locally, add the following to `.env.local` and restart the dev server:
+Client-side analytics is initialized. Behavior by environment:
+- Development: default opt-in (events are tracked if a token is set).
+- Production: default opt-out unless the user has previously consented, or `NEXT_PUBLIC_ANALYTICS_DEFAULT_OPT_IN=true` is set.
+
+To test events locally, add a Mixpanel token to `.env.local` and restart the dev server:
 
 ```
-NEXT_PUBLIC_ENABLE_ANALYTICS_DEV=true
 NEXT_PUBLIC_MIXPANEL_TOKEN=YOUR_MIXPANEL_PROJECT_TOKEN
+```
+
+To opt-in by default in production (without per-user consent), set:
+
+```
+NEXT_PUBLIC_ANALYTICS_DEFAULT_OPT_IN=true
 ```
 
 For server-side webhook analytics (frame added/removed, notifications enabled/disabled), you can optionally set a server token:
