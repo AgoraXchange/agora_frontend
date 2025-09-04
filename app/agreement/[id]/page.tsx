@@ -544,6 +544,7 @@ export default function AgreementDetailPage() {
                 const urlBase = process.env.NEXT_PUBLIC_BACKEND_URL;
                 if (urlBase) {
                   const url = `${urlBase}/api/oracle/contracts/${contractId}/ended`;
+                  // Fire-and-forget with error handling; keepalive increases reliability during unload
                   void fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -553,6 +554,16 @@ export default function AgreementDetailPage() {
                       bettingEndTime: Number(contract.bettingEndTime ?? 0),
                       chainId: baseSepolia.id,
                     }),
+                    cache: 'no-store',
+                    keepalive: true,
+                  })
+                  .then((res) => {
+                    if (!res.ok) {
+                      console.warn('Backend end-notify responded non-OK:', res.status, res.statusText);
+                    }
+                  })
+                  .catch((e) => {
+                    console.warn('Failed to notify backend about debate end', e);
                   });
                 }
               } catch (e) {
