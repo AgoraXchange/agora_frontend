@@ -2,7 +2,7 @@
 
 import { type ReactNode } from "react";
 import { WagmiProvider, createConfig, http } from "wagmi";
-import { baseSepolia } from "wagmi/chains";
+import { baseSepolia, mainnet } from "wagmi/chains";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MiniKitProvider } from "@coinbase/onchainkit/minikit";
 import { OnchainKitProvider } from "@coinbase/onchainkit";
@@ -14,7 +14,8 @@ const queryClient = new QueryClient();
 
 // Configure wagmi with Coinbase Wallet connector
 const wagmiConfig = createConfig({
-  chains: [baseSepolia],
+  // Include Base Sepolia (app chain) and Ethereum Mainnet (ENS resolution)
+  chains: [baseSepolia, mainnet],
   connectors: [
     coinbaseWallet({
       appName: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME || "Agora",
@@ -27,6 +28,11 @@ const wagmiConfig = createConfig({
   ],
   transports: {
     [baseSepolia.id]: http("https://sepolia.base.org"),
+    // Use a CORS-friendly public RPC for mainnet by default; allow override via env
+    [mainnet.id]: http(
+      process.env.NEXT_PUBLIC_MAINNET_RPC_URL ||
+        "https://rpc.ankr.com/eth"
+    ),
   },
   syncConnectedChain: true, // Force chain synchronization with wallet
   ssr: false,
