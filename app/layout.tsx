@@ -67,25 +67,6 @@ export default function RootLayout({
           })();
           `}
         </Script>
-        {/* Filter noisy third-party deprecation warnings without hiding others */}
-        <Script id="filter-frame-sdk-deprecation" strategy="beforeInteractive">
-          {`
-          (function(){
-            try {
-              var _warn = console.warn;
-              console.warn = function(){
-                try {
-                  var msg = arguments[0] && String(arguments[0]);
-                  if (msg && msg.indexOf('@farcaster/frame-sdk is deprecated') !== -1) {
-                    return; // suppress only this deprecation warning
-                  }
-                } catch (e) {}
-                return _warn.apply(console, arguments);
-              };
-            } catch (e) {}
-          })();
-          `}
-        </Script>
         <Providers>
           <GlobalNetworkBanner />
           {children}

@@ -1,41 +1,33 @@
 "use client";
 
 import { type ReactNode } from "react";
-import { WagmiProvider, createConfig, http } from "wagmi";
-import { baseSepolia, mainnet } from "wagmi/chains";
+import { WagmiProvider } from "wagmi";
+import { baseSepolia } from "wagmi/chains";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MiniKitProvider } from "@coinbase/onchainkit/minikit";
 import { OnchainKitProvider } from "@coinbase/onchainkit";
-import { coinbaseWallet } from "wagmi/connectors";
+import { 
+  RainbowKitProvider,
+  getDefaultWallets,
+  getDefaultConfig,
+} from "@rainbow-me/rainbowkit";
+import "@rainbow-me/rainbowkit/styles.css";
 import { AnalyticsProvider } from "@/components/AnalyticsProvider";
 
 // Create query client
 const queryClient = new QueryClient();
 
-// Configure wagmi with Coinbase Wallet connector
-const wagmiConfig = createConfig({
-  // Include Base Sepolia (app chain) and Ethereum Mainnet (ENS resolution)
-  chains: [baseSepolia, mainnet],
-  connectors: [
-    coinbaseWallet({
-      appName: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME || "Agora",
-      appLogoUrl: process.env.NEXT_PUBLIC_ICON_URL,
-      preference: {
-        options: "smartWalletOnly"
-      },
-      chainId: baseSepolia.id, // Explicitly set Base Sepolia chain ID
-    }),
-  ],
-  transports: {
-    [baseSepolia.id]: http("https://sepolia.base.org"),
-    // Use a CORS-friendly public RPC for mainnet by default; allow override via env
-    [mainnet.id]: http(
-      process.env.NEXT_PUBLIC_MAINNET_RPC_URL ||
-        "https://rpc.ankr.com/eth"
-    ),
-  },
-  syncConnectedChain: true, // Force chain synchronization with wallet
-  ssr: false,
+// Get the default wallets (includes MetaMask, Coinbase, Rainbow, and WalletConnect)
+const { wallets } = getDefaultWallets();
+
+// Configure wagmi with RainbowKit's default config
+// This includes support for WalletConnect which enables Farcaster and other mobile wallets
+const wagmiConfig = getDefaultConfig({
+  appName: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME || "Agora",
+  projectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID || "YOUR_PROJECT_ID", // Required for WalletConnect
+  chains: [baseSepolia], // Only Base Sepolia supported
+  wallets,
+  ssr: false, // Disable SSR for client-side wallet connections
 });
 
 export function Providers(props: { children: ReactNode }) {
@@ -55,23 +47,33 @@ export function Providers(props: { children: ReactNode }) {
             },
           }}
         >
-          <MiniKitProvider
-            apiKey={process.env.NEXT_PUBLIC_ONCHAINKIT_API_KEY}
-            chain={baseSepolia}
-            config={{
-              appearance: {
-                mode: "auto",
-                // Use OnchainKit built-in theme to avoid overriding wallet colors
-                theme: "dark",
-                name: "Agora",
-                logo: process.env.NEXT_PUBLIC_ICON_URL,
-              },
+          <RainbowKitProvider
+            appInfo={{
+              appName: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME || "Agora",
+              learnMoreUrl: process.env.NEXT_PUBLIC_URL,
             }}
+            modalSize="compact"
+            showRecentTransactions={true}
+            initialChain={baseSepolia}
           >
-            <AnalyticsProvider>
-              {props.children}
-            </AnalyticsProvider>
-          </MiniKitProvider>
+            <MiniKitProvider
+              apiKey={process.env.NEXT_PUBLIC_ONCHAINKIT_API_KEY}
+              chain={baseSepolia}
+              config={{
+                appearance: {
+                  mode: "auto",
+                  // Use OnchainKit built-in theme to avoid overriding wallet colors
+                  theme: "dark",
+                  name: "Agora",
+                  logo: process.env.NEXT_PUBLIC_ICON_URL,
+                },
+              }}
+            >
+              <AnalyticsProvider>
+                {props.children}
+              </AnalyticsProvider>
+            </MiniKitProvider>
+          </RainbowKitProvider>
         </OnchainKitProvider>
       </QueryClientProvider>
     </WagmiProvider>

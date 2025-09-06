@@ -2,7 +2,7 @@
 
 import { CommentItem } from "./CommentItem";
 import type { Comment } from "@/types/contract";
-import { ConnectWallet } from "@coinbase/onchainkit/wallet";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 
 interface LiveDebateBottomSheetProps {
   isOpen: boolean;
@@ -101,7 +101,18 @@ export function LiveDebateBottomSheet({
             <div className="border-t border-gray-800 p-4">
               {!isConnected ? (
                 /* Connect Wallet Button */
-                <ConnectWallet className="!w-full !h-12 !text-base !bg-transparent !border !border-primary !text-primary hover:!bg-primary hover:!text-gray-1000 !rounded-xl" />
+                <div className="w-full">
+                  <ConnectButton.Custom>
+                    {({ openConnectModal }) => (
+                      <button
+                        onClick={openConnectModal}
+                        className="w-full h-12 text-base bg-transparent border border-primary text-primary hover:bg-primary hover:text-gray-1000 rounded-xl transition-colors"
+                      >
+                        Connect Wallet
+                      </button>
+                    )}
+                  </ConnectButton.Custom>
+                </div>
               ) : (
                 /* Comment Input for connected users */
                 <>
