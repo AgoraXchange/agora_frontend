@@ -1,12 +1,11 @@
 "use client";
 
-import { useMiniKit, useAddFrame } from "@coinbase/onchainkit/minikit";
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useMiniKit } from "@coinbase/onchainkit/minikit";
+import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useReadContract, useReadContracts } from "wagmi";
 import { Header } from "@/components/Header";
 import { DebateCard } from "@/components/DebateCard";
-import { Button } from "./components/DemoComponents";
 import { AGREEMENT_FACTORY_ADDRESS, AGREEMENT_FACTORY_ABI } from "@/lib/agreementFactoryABI";
 import { useAnalytics } from "@/lib/hooks/useAnalytics";
 import { EVENTS } from "@/lib/analytics";
@@ -31,12 +30,9 @@ interface AgreementContract {
 }
 
 export default function App() {
-  const { setFrameReady, isFrameReady, context } = useMiniKit();
-  const [frameAdded, setFrameAdded] = useState(false);
+  const { setFrameReady, isFrameReady } = useMiniKit();
   const router = useRouter();
-  const { trackPageView, trackFrameEvent, trackDebateEvent } = useAnalytics();
-
-  const addFrame = useAddFrame();
+  const { trackPageView, trackDebateEvent } = useAnalytics();
 
   // Read contract count
   const { data: agreementCountData } = useReadContract({
@@ -52,10 +48,9 @@ export default function App() {
   useEffect(() => {
     router.prefetch('/create');
     trackPageView('home', {
-      agreement_count: agreementCount,
-      has_context: Boolean(context)
+      agreement_count: agreementCount
     });
-  }, [router, trackPageView, agreementCount, context]);
+  }, [router, trackPageView, agreementCount]);
 
   // Read all agreements
   const { data: agreementsData, isLoading } = useReadContracts({
@@ -120,48 +115,11 @@ export default function App() {
     }
   }, [setFrameReady, isFrameReady]);
 
-  const handleAddFrame = useCallback(async () => {
-    const frameAdded = await addFrame();
-    setFrameAdded(Boolean(frameAdded));
-    
-    // Track frame addition
-    if (frameAdded) {
-      trackFrameEvent(EVENTS.FRAME_ADDED, {
-        frame_action: 'added',
-        frame_url: window.location.href
-      });
-    }
-  }, [addFrame, trackFrameEvent]);
-
-  const saveFrameButton = useMemo(() => {
-    if (context && !context.client.added) {
-      return (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleAddFrame}
-          className="!text-primary !px-3 !py-1.5 !text-xs sm:!text-sm border border-primary rounded-lg hover:bg-primary hover:!text-gray-1000"
-        >
-          Save Frame
-        </Button>
-      );
-    }
-
-    if (frameAdded) {
-      return (
-        <div className="flex items-center space-x-1 text-xs sm:text-sm font-medium text-primary animate-fade-out">
-          <span>✓ Saved</span>
-        </div>
-      );
-    }
-
-    return null;
-  }, [context, frameAdded, handleAddFrame]);
 
 
   return (
     <div className="min-h-screen bg-gray-1000">
-      <Header saveFrameButton={saveFrameButton} />
+      <Header />
       
       {/* Main content with padding for fixed header */}
       <main className="pt-14 sm:pt-16">
