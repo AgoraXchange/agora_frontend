@@ -1,14 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { 
-  ConnectWallet, 
-  Wallet,
-  WalletDropdown,
-  WalletDropdownLink,
-  WalletDropdownDisconnect 
-} from "@coinbase/onchainkit/wallet";
-import { Name } from "@coinbase/onchainkit/identity";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Link from "next/link";
 import { baseSepolia } from "wagmi/chains";
 import { useAccount, useChainId } from "wagmi";
@@ -48,53 +41,109 @@ export function Header({ saveFrameButton }: HeaderProps) {
               <span className="text-white text-xl sm:text-2xl font-bold whitespace-nowrap">agora</span>
             </Link>
 
-            {/* Right side - Network, Wallet & Save */}
+            {/* Right side - Wallet & Save */}
             <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0">
-              {/* Network Status Indicator */}
-              {chainId && (
-                <div className="flex items-center gap-1 sm:gap-2">
-                  <div className="flex items-center gap-1">
-                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isBaseSepolia(chainId) ? 'bg-green-400' : 'bg-red-400'}`} />
-                    <span className={`hidden sm:inline text-xs font-medium ${getNetworkStatusColor(chainId)} whitespace-nowrap`}>
-                      {getNetworkName(chainId)}
-                    </span>
-                    {/* Mobile: Show distinct short name to distinguish Base networks */}
-                    <span className={`sm:hidden text-xs font-medium ${getNetworkStatusColor(chainId)}`}>
-                      {getNetworkShortName(chainId)}
-                    </span>
-                  </div>
-                  
-                  {/* Switch Network Button */}
-                  {needsSwitch && (
-                    <button
-                      onClick={() => setShowNetworkModal(true)}
-                      className="text-[10px] sm:text-xs bg-red-600 hover:bg-red-700 text-white px-1.5 py-0.5 sm:px-2 sm:py-1 rounded transition-colors whitespace-nowrap"
-                    >
-                      Switch
-                    </button>
-                  )}
-                </div>
-              )}
-
               {saveFrameButton}
               
-              <Wallet className="z-10 flex-shrink-0">
-                {/* Match Save Frame button styles: border, colors, and text alignment */}
-                <ConnectWallet className="!px-3 !py-1.5 !text-xs sm:!text-sm !bg-transparent !border !border-primary !text-primary hover:!bg-primary hover:!text-gray-1000 !rounded-lg !transition-colors !min-w-0 flex items-center justify-center">
-                  <Name 
-                    className="!text-primary truncate max-w-[120px] sm:max-w-[160px]"
-                    chain={baseSepolia}
-                  />
-                </ConnectWallet>
-                <WalletDropdown>
-                  {/* Show a single line for identity to avoid duplicate address display */}
-                  <Name address={address} chain={baseSepolia} />
-                  <WalletDropdownLink icon="wallet" href="https://wallet.coinbase.com">
-                    Go to Wallet
-                  </WalletDropdownLink>
-                  <WalletDropdownDisconnect />
-                </WalletDropdown>
-              </Wallet>
+              <ConnectButton.Custom>
+                {({
+                  account,
+                  chain,
+                  openAccountModal,
+                  openChainModal,
+                  openConnectModal,
+                  authenticationStatus,
+                  mounted,
+                }) => {
+                  const ready = mounted && authenticationStatus !== 'loading';
+                  const connected =
+                    ready &&
+                    account &&
+                    chain &&
+                    (!authenticationStatus ||
+                      authenticationStatus === 'authenticated');
+
+                  return (
+                    <div
+                      {...(!ready && {
+                        'aria-hidden': true,
+                        'style': {
+                          opacity: 0,
+                          pointerEvents: 'none',
+                          userSelect: 'none',
+                        },
+                      })}
+                    >
+                      {(() => {
+                        if (!connected) {
+                          return (
+                            <button
+                              onClick={openConnectModal}
+                              type="button"
+                              className="px-3 py-1.5 text-xs sm:text-sm bg-transparent border border-primary text-primary hover:bg-primary hover:text-gray-1000 rounded-lg transition-colors min-w-0 flex items-center justify-center"
+                            >
+                              Connect Wallet
+                            </button>
+                          );
+                        }
+
+                        if (chain.unsupported) {
+                          return (
+                            <button
+                              onClick={openChainModal}
+                              type="button"
+                              className="px-3 py-1.5 text-xs sm:text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                            >
+                              Wrong network
+                            </button>
+                          );
+                        }
+
+                        return (
+                          <div style={{ display: 'flex', gap: 12 }}>
+                            <button
+                              onClick={openChainModal}
+                              style={{ display: 'flex', alignItems: 'center' }}
+                              type="button"
+                              className="px-2 py-1 text-xs sm:text-sm bg-transparent border border-primary text-primary hover:bg-primary hover:text-gray-1000 rounded-lg transition-colors"
+                            >
+                              {chain.hasIcon && (
+                                <div
+                                  style={{
+                                    background: chain.iconBackground,
+                                    width: 20,
+                                    height: 20,
+                                    borderRadius: 999,
+                                    overflow: 'hidden',
+                                    marginRight: 4,
+                                  }}
+                                >
+                                  {chain.iconUrl && (
+                                    <img
+                                      alt={chain.name ?? 'Chain icon'}
+                                      src={chain.iconUrl}
+                                      style={{ width: 20, height: 20 }}
+                                    />
+                                  )}
+                                </div>
+                              )}
+                              {chain.name}
+                            </button>
+
+                            <button
+                              onClick={openAccountModal}
+                              type="button"
+                              className="px-3 py-1.5 text-xs sm:text-sm bg-transparent border border-primary text-primary hover:bg-primary hover:text-gray-1000 rounded-lg transition-colors min-w-0 flex items-center justify-center"
+                            >
+                              {account.displayName}
+                            </button>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  );
+                }}
+              </ConnectButton.Custom>
             </div>
           </div>
         </div>
