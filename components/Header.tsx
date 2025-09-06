@@ -3,21 +3,11 @@
 import { useState } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Link from "next/link";
-import { baseSepolia } from "wagmi/chains";
-import { useAccount, useChainId } from "wagmi";
 import { useEnsureChain } from "@/lib/hooks/useEnsureChain";
 import { NetworkSwitchModal } from "./NetworkSwitchModal";
-import { getNetworkName, getNetworkStatusColor, getNetworkShortName, isBaseSepolia } from "@/lib/utils/network";
 
-interface HeaderProps {
-  saveFrameButton?: React.ReactNode;
-}
-
-export function Header({ saveFrameButton }: HeaderProps) {
-  const { address } = useAccount();
-  const chainId = useChainId();
+export function Header() {
   const { 
-    needsSwitch, 
     switchNetwork, 
     isSwitching, 
     error, 
@@ -41,9 +31,8 @@ export function Header({ saveFrameButton }: HeaderProps) {
               <span className="text-white text-xl sm:text-2xl font-bold whitespace-nowrap">agora</span>
             </Link>
 
-            {/* Right side - Wallet & Save */}
+            {/* Right side - Wallet */}
             <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0">
-              {saveFrameButton}
               
               <ConnectButton.Custom>
                 {({
