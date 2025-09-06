@@ -18,7 +18,7 @@ import { useAnalytics } from "@/lib/hooks/useAnalytics";
 import { EVENTS } from "@/lib/analytics";
 import { useEnsureChain } from "@/lib/hooks/useEnsureChain";
 // Toasts removed
-import { ConnectWallet } from "@coinbase/onchainkit/wallet";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 
 export default function AgreementDetailPage() {
   const params = useParams();
@@ -249,6 +249,13 @@ export default function AgreementDetailPage() {
       setLastAction(null);
       setBetError(null);
       setHasShownSubmitted(false);
+      
+      // Refresh the page after successful bet
+      if (lastAction === "bet") {
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+      }
     }
   }, [isSuccess, refetchContract, refetchComments, refetchUserBet, lastAction, trackBetEvent, trackDebateEvent, contract?.topic, contract?.creator, contract?.status, betAmount, selectedSide, contractId, address, config]);
 
@@ -576,7 +583,16 @@ export default function AgreementDetailPage() {
         {/* Connect Wallet CTA when not connected and open */}
         {!isConnected && contract.status === 0 && (
           <div className="mb-4">
-            <ConnectWallet className="!w-full !h-12 !text-base !bg-transparent !border !border-primary !text-primary hover:!bg-primary hover:!text-gray-1000 !rounded-xl" />
+            <ConnectButton.Custom>
+              {({ openConnectModal }) => (
+                <button
+                  onClick={openConnectModal}
+                  className="w-full h-12 text-base bg-transparent border border-primary text-primary hover:bg-primary hover:text-gray-1000 rounded-xl transition-colors"
+                >
+                  Connect Wallet
+                </button>
+              )}
+            </ConnectButton.Custom>
           </div>
         )}
 
