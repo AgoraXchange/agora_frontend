@@ -31,6 +31,7 @@ interface DebateCardProps {
   };
   image?: string;
   onClick?: () => void;
+  chainId?: number;
 }
 
 export function DebateCard({
@@ -44,10 +45,17 @@ export function DebateCard({
   totalVolume,
   image,
   onClick,
+  chainId,
 }: DebateCardProps) {
   const totalVotes = (option1.votes || 0) + (option2.votes || 0);
   const option1Percentage = totalVotes > 0 ? ((option1.votes || 0) / totalVotes) * 100 : 50;
   const option2Percentage = totalVotes > 0 ? ((option2.votes || 0) / totalVotes) * 100 : 50;
+  
+  const getCurrencySymbol = (chainId?: number) => {
+    if (chainId === 84532) return "ETH";
+    if (chainId === 10143) return "MON";
+    return "ETH";
+  };
 
   return (
     <div 
@@ -147,7 +155,7 @@ export function DebateCard({
               <>
                 <span className="text-gray-800">•</span>
                 <span className="text-gray-100">
-                  Vol. {parseFloat(formatEther(totalVolume)).toFixed(3)} ETH
+                  Vol. {parseFloat(formatEther(totalVolume)).toFixed(3)} {getCurrencySymbol(chainId)}
                 </span>
               </>
             )}

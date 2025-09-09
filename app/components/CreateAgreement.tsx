@@ -1,19 +1,46 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId, useConfig, useReconnect } from "wagmi";
+import { getChainId } from "wagmi/actions";
 import { baseSepolia } from "wagmi/chains";
 import { parseEther } from "viem";
-import { AGREEMENT_FACTORY_ADDRESS, AGREEMENT_FACTORY_ABI } from "@/lib/agreementFactoryABI";
+import { getAgreementFactoryAddress, AGREEMENT_FACTORY_ABI } from "@/lib/agreementFactoryABI";
 import { useRouter } from "next/navigation";
 import { useAnalytics } from "@/lib/hooks/useAnalytics";
 import { EVENTS } from "@/lib/analytics";
 import { useEnsureChain } from "@/lib/hooks/useEnsureChain";
+import { monadTestnet } from "@/lib/utils/customChains";
 // Toasts removed
 
 export function CreateAgreement() {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, chain } = useAccount();
+  const chainId = useChainId();
+  const config = useConfig();
+  const { reconnect } = useReconnect();
   const { isCorrectChain, isSwitching, needsSwitch, ensureCorrectChain } = useEnsureChain(); // Auto switch to Base Sepolia
+  
+  // Debug logging
+  console.log("useAccount chain:", chain?.id);
+  console.log("useChainId:", chainId);
+  
+  // Check for potential state mismatch early
+  let configChainId;
+  try {
+    configChainId = getChainId(config);
+    console.log("Early config chainId check:", configChainId);
+  } catch (error) {
+    console.log("Early config chainId error:", error);
+    configChainId = chainId;
+  }
+  
+  // Use the actual connected chain ID from the account, fallback to useChainId()
+  const actualChainId = chain?.id ?? chainId;
+  
+  // Detect mismatch early and show warning
+  const hasChainMismatch = configChainId !== actualChainId;
+  console.log("Chain mismatch detected:", hasChainMismatch, "Config:", configChainId, "Hook:", actualChainId);
+  
   // Toasts removed
   const router = useRouter();
   const [topic, setTopic] = useState("");
@@ -25,6 +52,9 @@ export function CreateAgreement() {
   const [minBet, setMinBet] = useState<string>("0.0002");
   const [maxBet, setMaxBet] = useState<string>("0.1");
   // Betting end time input removed; default duration is fixed (24h)
+  
+  // Determine currency symbol based on chain
+  const currencySymbol = actualChainId === monadTestnet.id ? "MON" : "ETH";
 
   useEffect(() => {
     // Short delay to ensure smooth transition
@@ -144,7 +174,7 @@ export function CreateAgreement() {
         return;
       }
       if (minWei < MIN_ALLOWED) {
-        alert(`Minimum bet must be at least 0.0002 ETH`);
+        alert(`Minimum bet must be at least 0.0002 ${currencySymbol}`);
         return;
       }
       if (maxWei <= BigInt(0)) {
@@ -152,7 +182,7 @@ export function CreateAgreement() {
         return;
       }
       if (maxWei > MAX_ALLOWED) {
-        alert(`Maximum bet cannot exceed 100 ETH`);
+        alert(`Maximum bet cannot exceed 100 ${currencySymbol}`);
         return;
       }
       if (minWei > maxWei) {
@@ -160,7 +190,7 @@ export function CreateAgreement() {
         return;
       }
     } catch {
-      alert("Please enter valid ETH amounts");
+      alert(`Please enter valid ${currencySymbol} amounts`);
       return;
     }
 
@@ -172,10 +202,42 @@ export function CreateAgreement() {
       const ok = await ensureCorrectChain();
       if (!ok) { return; }
       
+      console.log("Current chainId from useChainId:", chainId);
+      console.log("Current chainId from useAccount:", chain?.id);
+      console.log("Using actualChainId:", actualChainId);
+      console.log("Contract address:", getAgreementFactoryAddress(actualChainId));
+      
+      // Double-check the actual chain from config
+      let configChainId;
+      try {
+        configChainId = getChainId(config);
+        console.log("Config chainId:", configChainId);
+      } catch (error) {
+        console.error("Failed to get config chain ID:", error);
+        configChainId = actualChainId;
+      }
+      
+      // If there's a mismatch between wagmi state and config, show error and ask user to refresh
+      if (configChainId && configChainId !== actualChainId) {
+        console.log("Chain mismatch detected! Config:", configChainId, "vs Hook:", actualChainId);
+        
+        alert(`Network sync issue detected.\n\nWallet connector: Chain ${configChainId}\nApp state: Chain ${actualChainId}\n\nPlease refresh the page to sync your wallet properly.`);
+        return;
+      }
+      
+      // Use the actual chain ID from the wallet for consistency
+      const transactionChainId = actualChainId;
+      
       // Track create button click (page view again optional)
       trackPageView('create_submit');
+      
+      console.log("Transaction details:", {
+        address: getAgreementFactoryAddress(transactionChainId),
+        chainId: transactionChainId
+      });
+      
       await writeContract({
-        address: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
+        address: getAgreementFactoryAddress(transactionChainId) as `0x${string}`,
         abi: AGREEMENT_FACTORY_ABI,
         functionName: "createContract",
         args: [
@@ -187,7 +249,7 @@ export function CreateAgreement() {
           minWei, // User-defined min bet (validated)
           maxWei  // User-defined max bet (validated)
         ],
-        chainId: baseSepolia.id,
+        chainId: transactionChainId,
       });
     } catch (err) {
       // Check if user rejected the transaction
@@ -333,7 +395,7 @@ export function CreateAgreement() {
           <label className="block text-white text-lg font-medium mb-2">Bet Limits</label>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-gray-300 text-xs mb-1">Min Bet (ETH)</label>
+              <label className="block text-gray-300 text-xs mb-1">Min Bet ({currencySymbol})</label>
               <input
                 type="number"
                 value={minBet}
@@ -353,7 +415,7 @@ export function CreateAgreement() {
               />
             </div>
             <div>
-              <label className="block text-gray-300 text-xs mb-1">Max Bet (ETH)</label>
+              <label className="block text-gray-300 text-xs mb-1">Max Bet ({currencySymbol})</label>
               <input
                 type="number"
                 value={maxBet}
@@ -383,13 +445,13 @@ export function CreateAgreement() {
               const MIN_ALLOWED = parseEther("0.0002");
               const MAX_ALLOWED = parseEther("100");
               
-              if (minV < MIN_ALLOWED) return <p className="text-red-400 text-sm mt-2">Min bet must be at least 0.0002 ETH.</p>;
+              if (minV < MIN_ALLOWED) return <p className="text-red-400 text-sm mt-2">Min bet must be at least 0.0002 {currencySymbol}.</p>;
               if (maxV <= BigInt(0)) return <p className="text-red-400 text-sm mt-2">Max bet must be greater than 0.</p>;
-              if (maxV > MAX_ALLOWED) return <p className="text-red-400 text-sm mt-2">Max bet cannot exceed 100 ETH.</p>;
-              if (maxV < minV) return <p className="text-red-400 text-sm mt-2">Max bet must be at least {minBet} ETH.</p>;
+              if (maxV > MAX_ALLOWED) return <p className="text-red-400 text-sm mt-2">Max bet cannot exceed 100 {currencySymbol}.</p>;
+              if (maxV < minV) return <p className="text-red-400 text-sm mt-2">Max bet must be at least {minBet} {currencySymbol}.</p>;
               return null;
             } catch {
-              return <p className="text-red-400 text-sm mt-2">Enter valid ETH amounts (e.g., 0.001).</p>;
+              return <p className="text-red-400 text-sm mt-2">Enter valid {currencySymbol} amounts (e.g., 0.001).</p>;
             }
           })()}
         </div>
@@ -400,7 +462,7 @@ export function CreateAgreement() {
         <button
           onClick={handleCreateContract}
           disabled={(() => {
-            if (!isConnected || isPending || isConfirming || isSwitching || !isCorrectChain || !topic.trim() || !description.trim() || !partyA.trim() || !partyB.trim()) return true;
+            if (!isConnected || isPending || isConfirming || isSwitching || !isCorrectChain || hasChainMismatch || !topic.trim() || !description.trim() || !partyA.trim() || !partyB.trim()) return true;
             try {
               const minV = parseEther((minBet || '').trim());
               const maxV = parseEther((maxBet || '').trim());
@@ -424,7 +486,22 @@ export function CreateAgreement() {
 
         {needsSwitch && (
           <div className="mt-2 text-center">
-            <p className="text-yellow-400 text-sm">Please switch to Base Sepolia network first</p>
+            <p className="text-yellow-400 text-sm">Please switch to a supported network first</p>
+          </div>
+        )}
+
+        {hasChainMismatch && (
+          <div className="mt-2 text-center p-3 bg-red-900/20 border border-red-700 rounded-lg">
+            <p className="text-red-400 text-sm mb-2">Network sync issue detected!</p>
+            <p className="text-red-300 text-xs mb-2">
+              Wallet: Chain {configChainId} • App: Chain {actualChainId}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1 rounded"
+            >
+              Refresh Page
+            </button>
           </div>
         )}
       </div>

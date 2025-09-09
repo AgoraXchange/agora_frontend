@@ -3,10 +3,10 @@
 import { useMiniKit } from "@coinbase/onchainkit/minikit";
 import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { useReadContract, useReadContracts } from "wagmi";
+import { useReadContract, useReadContracts, useChainId } from "wagmi";
 import { Header } from "@/components/Header";
 import { DebateCard } from "@/components/DebateCard";
-import { AGREEMENT_FACTORY_ADDRESS, AGREEMENT_FACTORY_ABI } from "@/lib/agreementFactoryABI";
+import { getAgreementFactoryAddress, AGREEMENT_FACTORY_ABI } from "@/lib/agreementFactoryABI";
 import { useAnalytics } from "@/lib/hooks/useAnalytics";
 import { EVENTS } from "@/lib/analytics";
 
@@ -32,11 +32,12 @@ interface AgreementContract {
 export default function App() {
   const { setFrameReady, isFrameReady } = useMiniKit();
   const router = useRouter();
+  const chainId = useChainId();
   const { trackPageView, trackDebateEvent } = useAnalytics();
 
   // Read contract count
   const { data: agreementCountData } = useReadContract({
-    address: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
+    address: getAgreementFactoryAddress(chainId) as `0x${string}`,
     abi: AGREEMENT_FACTORY_ABI,
     functionName: "contractCounter",
   });
@@ -55,7 +56,7 @@ export default function App() {
   // Read all agreements
   const { data: agreementsData, isLoading } = useReadContracts({
     contracts: agreementIds.map((id) => ({
-      address: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
+      address: getAgreementFactoryAddress(chainId) as `0x${string}`,
       abi: AGREEMENT_FACTORY_ABI,
       functionName: "contracts",
       args: [BigInt(id)],
@@ -207,6 +208,7 @@ export default function App() {
                     creator={agreement.creator}
                     totalVolume={agreement.totalPoolA + agreement.totalPoolB}
                     timeRemaining={formatTimeRemaining(agreement.bettingEndTime)}
+                    chainId={chainId}
                     onClick={() => {
                       trackDebateEvent(EVENTS.DEBATE_CARD_CLICKED, {
                         debate_id: agreement.id.toString(),

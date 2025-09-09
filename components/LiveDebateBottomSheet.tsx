@@ -21,6 +21,7 @@ interface LiveDebateBottomSheetProps {
   isCorrectChain: boolean;
   isSwitching: boolean;
   needsSwitch: boolean;
+  chainId?: number;
 }
 
 export function LiveDebateBottomSheet({
@@ -40,8 +41,15 @@ export function LiveDebateBottomSheet({
   isCorrectChain,
   isSwitching,
   needsSwitch,
+  chainId,
 }: LiveDebateBottomSheetProps) {
   if (!isOpen) return null;
+
+  const getNetworkName = (chainId?: number) => {
+    if (chainId === 84532) return "Base Sepolia";
+    if (chainId === 10143) return "Monad Testnet";
+    return "Base Sepolia";
+  };
 
   return (
     <div 
@@ -120,7 +128,7 @@ export function LiveDebateBottomSheet({
                   {needsSwitch && (
                     <div className="mb-3 p-2 bg-yellow-900/20 border border-yellow-700 rounded-lg">
                       <p className="text-yellow-400 text-xs text-center">
-                        Switch to Base Sepolia network to comment
+                        Switch to {getNetworkName(chainId)} network to comment
                       </p>
                     </div>
                   )}
