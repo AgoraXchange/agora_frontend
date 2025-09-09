@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useReadContract, useReadContracts } from "wagmi";
-import { AGREEMENT_FACTORY_ADDRESS, AGREEMENT_FACTORY_ABI } from "@/lib/agreementFactoryABI";
+import { useReadContract, useReadContracts, useChainId } from "wagmi";
+import { getAgreementFactoryAddress, AGREEMENT_FACTORY_ABI } from "@/lib/agreementFactoryABI";
 
 interface AgreementContract {
   id: number;
@@ -145,9 +145,10 @@ function AgreementCard({ contract, onSelect }: AgreementCardProps) {
 
 export function AgreementList() {
   const router = useRouter();
+  const chainId = useChainId();
   
   const { data: contractCounter } = useReadContract({
-    address: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
+    address: getAgreementFactoryAddress(chainId) as `0x${string}`,
     abi: AGREEMENT_FACTORY_ABI,
     functionName: "contractCounter",
   });
@@ -159,7 +160,7 @@ export function AgreementList() {
   const contractReads = [];
   for (let i = startIndex; i < count; i++) {
     contractReads.push({
-      address: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
+      address: getAgreementFactoryAddress(chainId) as `0x${string}`,
       abi: AGREEMENT_FACTORY_ABI,
       functionName: 'getContract' as const,
       args: [BigInt(i)],

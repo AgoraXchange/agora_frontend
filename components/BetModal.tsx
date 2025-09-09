@@ -26,6 +26,7 @@ interface BetModalProps {
   insufficientBalance?: boolean;
   minBet?: string;
   maxBet?: string;
+  chainId?: number;
 }
 
 export function BetModal({
@@ -52,8 +53,21 @@ export function BetModal({
   insufficientBalance = false,
   minBet = "0.0002",
   maxBet = "100",
+  chainId,
 }: BetModalProps) {
   const [showAmountStep, setShowAmountStep] = useState(false);
+  
+  const getCurrencySymbol = () => {
+    if (chainId === 84532) return "ETH";
+    if (chainId === 10143) return "MON";
+    return "ETH";
+  };
+  
+  const getNetworkName = () => {
+    if (chainId === 84532) return "Base Sepolia";
+    if (chainId === 10143) return "Monad Testnet";
+    return "Base Sepolia";
+  };
 
   if (!isOpen) return null;
 
@@ -181,7 +195,7 @@ export function BetModal({
               {/* To Win Display */}
               <div className="text-center">
                 <span className="text-gray-400">To Win : </span>
-                <span className="text-primary font-bold">{calculateWinAmount()} ETH</span>
+                <span className="text-primary font-bold">{calculateWinAmount()} {getCurrencySymbol()}</span>
                 {!hasOppositeBets() && (
                   <div className="text-xs text-gray-500 mt-1">
                     Actual winnings may vary based on final odds
@@ -211,9 +225,9 @@ export function BetModal({
                     min={minBet}
                     max={maxBet}
                   />
-                  <div className="text-center text-gray-400 text-sm mt-1">ETH</div>
+                  <div className="text-center text-gray-400 text-sm mt-1">{getCurrencySymbol()}</div>
                   <div className="text-center text-gray-500 text-xs mt-1">
-                    Min: {minBet} ETH | Max: {maxBet} ETH
+                    Min: {minBet} {getCurrencySymbol()} | Max: {maxBet} {getCurrencySymbol()}
                   </div>
                 </div>
 
@@ -231,7 +245,7 @@ export function BetModal({
               {needsSwitch && (
                 <div className="mb-4 p-3 bg-yellow-900/20 border border-yellow-700 rounded-lg">
                   <p className="text-yellow-400 text-sm text-center">
-                    Please switch to Base Sepolia network to place bets
+                    Please switch to {getNetworkName()} network to place bets
                   </p>
                 </div>
               )}
@@ -246,7 +260,7 @@ export function BetModal({
                   return (
                     <div className="mb-4 p-3 bg-yellow-900/30 border border-yellow-600 rounded-lg">
                       <p className="text-yellow-300 text-sm text-center">
-                        Minimum bet is {minBet} ETH
+                        Minimum bet is {minBet} {getCurrencySymbol()}
                       </p>
                     </div>
                   );
@@ -256,7 +270,7 @@ export function BetModal({
                   return (
                     <div className="mb-4 p-3 bg-yellow-900/30 border border-yellow-600 rounded-lg">
                       <p className="text-yellow-300 text-sm text-center">
-                        Maximum bet is {maxBet} ETH
+                        Maximum bet is {maxBet} {getCurrencySymbol()}
                       </p>
                     </div>
                   );
@@ -266,7 +280,7 @@ export function BetModal({
                   return (
                     <div className="mb-4 p-3 bg-red-900/30 border border-red-600 rounded-lg">
                       <p className="text-red-300 text-sm text-center">
-                        Insufficient ETH balance (need {betAmount} ETH + gas fees)
+                        Insufficient {getCurrencySymbol()} balance (need {betAmount} {getCurrencySymbol()} + gas fees)
                       </p>
                     </div>
                   );
@@ -299,14 +313,14 @@ export function BetModal({
                   if (isSwitching) return "Switching Network...";
                   if (isPending || isConfirming) return "Processing...";
                   if (needsSwitch) return "Wrong Network";
-                  if (insufficientBalance) return "Insufficient ETH";
+                  if (insufficientBalance) return `Insufficient ${getCurrencySymbol()}`;
                   
                   const amount = parseFloat(betAmount) || 0;
                   const min = parseFloat(minBet);
                   const max = parseFloat(maxBet);
                   
-                  if (amount < min && betAmount !== '') return `Min ${minBet} ETH`;
-                  if (amount > max) return `Max ${maxBet} ETH`;
+                  if (amount < min && betAmount !== '') return `Min ${minBet} ${getCurrencySymbol()}`;
+                  if (amount > max) return `Max ${maxBet} ${getCurrencySymbol()}`;
                   if (!isValidAmount()) return "Invalid Amount";
                   
                   return "Bet";

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useChainId, useSwitchChain, useConfig } from 'wagmi';
 import { getChainId } from 'wagmi/actions';
 import { baseSepolia } from 'wagmi/chains';
+import { monadTestnet } from '@/lib/utils/customChains';
 
 interface EnsureChainState {
   isCorrectChain: boolean;
@@ -26,8 +27,16 @@ export function useEnsureChain(): EnsureChainState {
   const [autoSwitchEnabled, setAutoSwitchEnabledState] = useState<boolean>(true);
   const PREF_KEY = 'agora:autoSwitchToSepolia';
 
-  const isCorrectChain = chainId === baseSepolia.id;
+  // Allow both Base Sepolia and Monad testnet
+  const isCorrectChain = chainId === baseSepolia.id || chainId === monadTestnet.id;
   const needsSwitch = chainId !== undefined && !isCorrectChain;
+  
+  // Debug logging
+  console.log("useEnsureChain - chainId:", chainId);
+  console.log("useEnsureChain - baseSepolia.id:", baseSepolia.id);  
+  console.log("useEnsureChain - monadTestnet.id:", monadTestnet.id);
+  console.log("useEnsureChain - isCorrectChain:", isCorrectChain);
+  console.log("useEnsureChain - needsSwitch:", needsSwitch);
 
   const switchNetwork = useCallback(async () => {
     if (!switchChain || !chainId) return;
@@ -35,14 +44,16 @@ export function useEnsureChain(): EnsureChainState {
     try {
       setIsSwitching(true);
       setError(null);
-      console.log(`Switching from chain ${chainId} to Base Sepolia (${baseSepolia.id})`);
-      await switchChain({ chainId: baseSepolia.id });
+      // Default to Base Sepolia when switching networks
+      const targetChain = baseSepolia.id;
+      console.log(`Switching from chain ${chainId} to Base Sepolia (${targetChain})`);
+      await switchChain({ chainId: targetChain });
       // Wait until the client actually reports the new chain id
       const start = Date.now();
       while (Date.now() - start < 7000) {
         try {
           const current = getChainId(config);
-          if (current === baseSepolia.id) break;
+          if (current === targetChain) break;
         } catch {}
         await new Promise((r) => setTimeout(r, 150));
       }
@@ -67,10 +78,10 @@ export function useEnsureChain(): EnsureChainState {
   const ensureCorrectChain = useCallback(async (): Promise<boolean> => {
     if (isCorrectChain) return true;
     await switchNetwork();
-    // Double check via config
+    // Double check via config - accept both supported chains
     try {
       const current = getChainId(config);
-      return current === baseSepolia.id;
+      return current === baseSepolia.id || current === monadTestnet.id;
     } catch {
       return false;
     }
@@ -88,7 +99,16 @@ export function useEnsureChain(): EnsureChainState {
 
   // Auto-switch only once when component mounts and chain is detected (if enabled)
   useEffect(() => {
+    console.log("useEnsureChain auto-switch check:", {
+      needsSwitch,
+      autoSwitchEnabled, 
+      autoSwitchAttempted,
+      isSwitching,
+      willSwitch: needsSwitch && autoSwitchEnabled && !autoSwitchAttempted && !isSwitching
+    });
+    
     if (needsSwitch && autoSwitchEnabled && !autoSwitchAttempted && !isSwitching) {
+      console.log("useEnsureChain: Triggering auto-switch from", chainId, "to Base Sepolia");
       setAutoSwitchAttempted(true);
       switchNetwork();
     }

@@ -13,6 +13,7 @@ import {
 } from "@rainbow-me/rainbowkit";
 import "@rainbow-me/rainbowkit/styles.css";
 import { AnalyticsProvider } from "@/components/AnalyticsProvider";
+import { monadTestnet } from "@/lib/utils/customChains";
 
 // Create query client
 const queryClient = new QueryClient();
@@ -25,7 +26,7 @@ const { wallets } = getDefaultWallets();
 const wagmiConfig = getDefaultConfig({
   appName: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME || "Agora",
   projectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID || "YOUR_PROJECT_ID", // Required for WalletConnect
-  chains: [baseSepolia], // Only Base Sepolia supported
+  chains: [baseSepolia, monadTestnet], // Base Sepolia and Monad testnet supported
   wallets,
   ssr: false, // Disable SSR for client-side wallet connections
 });

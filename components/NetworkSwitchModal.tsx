@@ -61,23 +61,26 @@ export function NetworkSwitchModal({
         {/* Content */}
         <div className="space-y-4">
           <p className="text-gray-300">
-            Please switch to Base Sepolia network to continue using this application.
+            Please switch to a supported network to continue using this application.
           </p>
 
           {/* Network Details */}
           <div className="bg-gray-800 rounded-lg p-4 border border-gray-600">
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-400">Network Name:</span>
-                <span className="text-white font-medium">Base Sepolia</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-400">Chain ID:</span>
-                <span className="text-white font-medium">84532 (0x14a34)</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-400">RPC URL:</span>
-                <span className="text-white font-medium text-xs">https://sepolia.base.org</span>
+            <div className="space-y-3">
+              <p className="text-sm text-gray-400 font-medium">Supported Networks:</p>
+              
+              <div className="space-y-2 text-sm">
+                <div className="pb-2 border-b border-gray-700">
+                  <div className="font-medium text-white mb-1">Base Sepolia</div>
+                  <div className="text-gray-400 text-xs">Chain ID: 84532 (0x14a34)</div>
+                  <div className="text-gray-400 text-xs mt-1">✓ Natively supported by wallet</div>
+                </div>
+                
+                <div>
+                  <div className="font-medium text-white mb-1">Monad Testnet</div>
+                  <div className="text-gray-400 text-xs">Chain ID: 10143 (0x279f)</div>
+                  <div className="text-gray-400 text-xs mt-1">Custom network (will be added automatically)</div>
+                </div>
               </div>
             </div>
           </div>
@@ -125,7 +128,7 @@ export function NetworkSwitchModal({
                     Switching...
                   </>
                 ) : (
-                  "Switch to Base Sepolia"
+                  "Switch Network"
                 )}
               </button>
             )}

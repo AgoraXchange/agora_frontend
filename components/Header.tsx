@@ -5,6 +5,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Link from "next/link";
 import { useEnsureChain } from "@/lib/hooks/useEnsureChain";
 import { NetworkSwitchModal } from "./NetworkSwitchModal";
+import { monadTestnet } from "@/lib/utils/customChains";
 
 export function Header() {
   const { 
@@ -96,25 +97,34 @@ export function Header() {
                               type="button"
                               className="px-2 py-1 text-xs sm:text-sm bg-transparent border border-primary text-primary hover:bg-primary hover:text-gray-1000 rounded-lg transition-colors"
                             >
-                              {chain.hasIcon && (
-                                <div
-                                  style={{
-                                    background: chain.iconBackground,
-                                    width: 20,
-                                    height: 20,
-                                    borderRadius: 999,
-                                    overflow: 'hidden',
-                                    marginRight: 4,
-                                  }}
-                                >
-                                  {chain.iconUrl && (
-                                    <img
-                                      alt={chain.name ?? 'Chain icon'}
-                                      src={chain.iconUrl}
-                                      style={{ width: 20, height: 20 }}
-                                    />
-                                  )}
-                                </div>
+                              {/* Show Monad logo for Monad testnet */}
+                              {chain.id === monadTestnet.id ? (
+                                <img
+                                  alt="Monad logo"
+                                  src="/assets/icons/monad_logo.svg"
+                                  style={{ width: 20, height: 20, marginRight: 4 }}
+                                />
+                              ) : (
+                                chain.hasIcon && (
+                                  <div
+                                    style={{
+                                      background: chain.iconBackground,
+                                      width: 20,
+                                      height: 20,
+                                      borderRadius: 999,
+                                      overflow: 'hidden',
+                                      marginRight: 4,
+                                    }}
+                                  >
+                                    {chain.iconUrl && (
+                                      <img
+                                        alt={chain.name ?? 'Chain icon'}
+                                        src={chain.iconUrl}
+                                        style={{ width: 20, height: 20 }}
+                                      />
+                                    )}
+                                  </div>
+                                )
                               )}
                               {chain.name}
                             </button>

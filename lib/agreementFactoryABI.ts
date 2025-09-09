@@ -1,3 +1,23 @@
+import { baseSepolia } from "wagmi/chains";
+import { monadTestnet } from "./utils/customChains";
+
+// Chain-specific contract addresses
+export const getAgreementFactoryAddress = (chainId?: number): string => {
+  if (!chainId) {
+    throw new Error("Chain ID is required to get contract address");
+  }
+
+  switch (chainId) {
+    case baseSepolia.id:
+      return process.env.NEXT_PUBLIC_AGREEMENT_FACTORY_ADDRESS as string;
+    case monadTestnet.id:
+      return process.env.NEXT_PUBLIC_AGREEMENT_FACTORY_ADDRESS_MONAD as string;
+    default:
+      throw new Error(`Unsupported chain ID: ${chainId}`);
+  }
+};
+
+// Legacy export for backward compatibility
 export const AGREEMENT_FACTORY_ADDRESS = process.env.NEXT_PUBLIC_AGREEMENT_FACTORY_ADDRESS as string;
 
 export const AGREEMENT_FACTORY_ABI = [

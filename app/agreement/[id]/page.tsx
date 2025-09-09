@@ -2,11 +2,11 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useConfig, useBalance } from "wagmi";
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useConfig, useBalance, useChainId } from "wagmi";
 import { baseSepolia } from "wagmi/chains";
 import { parseEther, formatEther } from "viem";
 import { readContract } from "@wagmi/core";
-import { AGREEMENT_FACTORY_ADDRESS, AGREEMENT_FACTORY_ABI } from "@/lib/agreementFactoryABI";
+import { getAgreementFactoryAddress, AGREEMENT_FACTORY_ABI } from "@/lib/agreementFactoryABI";
 import { BettingOptions } from "@/components/BettingOptions";
 import { CountdownTimer } from "@/components/CountdownTimer";
 import { ResultSection } from "@/components/ResultSection";
@@ -26,7 +26,8 @@ export default function AgreementDetailPage() {
   const contractId = parseInt(params.id as string);
   
   const { isConnected, address } = useAccount();
-  const { data: balanceData } = useBalance({ address, chainId: baseSepolia.id, query: { enabled: !!address } });
+  const chainId = useChainId();
+  const { data: balanceData } = useBalance({ address, chainId, query: { enabled: !!address } });
   const { isCorrectChain, isSwitching, needsSwitch, ensureCorrectChain } = useEnsureChain(); // Auto switch to Base Sepolia
   // Toasts removed
   const [betError, setBetError] = useState<{ title: string; details: string[] } | null>(null);
@@ -58,7 +59,7 @@ export default function AgreementDetailPage() {
   
   // Contract data
   const { data: contractData, refetch: refetchContract } = useReadContract({
-    address: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
+    address: getAgreementFactoryAddress(chainId) as `0x${string}`,
     abi: AGREEMENT_FACTORY_ABI,
     functionName: "getContract",
     args: [BigInt(contractId)],
@@ -66,7 +67,7 @@ export default function AgreementDetailPage() {
 
   // Comments data
   const { data: commentsData, refetch: refetchComments } = useReadContract({
-    address: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
+    address: getAgreementFactoryAddress(chainId) as `0x${string}`,
     abi: AGREEMENT_FACTORY_ABI,
     functionName: "getComments",
     args: [BigInt(contractId), BigInt(0), BigInt(50)],
@@ -74,7 +75,7 @@ export default function AgreementDetailPage() {
 
   // Check if user has bet
   const { data: hasUserBet, refetch: refetchUserBet } = useReadContract({
-    address: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
+    address: getAgreementFactoryAddress(chainId) as `0x${string}`,
     abi: AGREEMENT_FACTORY_ABI,
     functionName: "hasUserBet",
     args: address ? [BigInt(contractId), address] : undefined,
@@ -111,7 +112,7 @@ export default function AgreementDetailPage() {
       for (const commenter of uniqueCommenters) {
         try {
           const result = await readContract(config, {
-            address: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
+            address: getAgreementFactoryAddress(chainId) as `0x${string}`,
             abi: AGREEMENT_FACTORY_ABI,
             functionName: "getUserBetsPaginated",
             args: [BigInt(contractId), commenter as `0x${string}`, BigInt(0), BigInt(1)],
@@ -183,7 +184,7 @@ export default function AgreementDetailPage() {
           try {
             if (!address) return;
             const result = await readContract(config, {
-              address: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
+              address: getAgreementFactoryAddress(chainId) as `0x${string}`,
               abi: AGREEMENT_FACTORY_ABI,
               functionName: "getUserBetsPaginated",
               args: [BigInt(contractId), address as `0x${string}`, BigInt(0), BigInt(1)],
@@ -355,12 +356,12 @@ export default function AgreementDetailPage() {
       });
       
       await writeContract({
-        address: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
+        address: getAgreementFactoryAddress(chainId) as `0x${string}`,
         abi: AGREEMENT_FACTORY_ABI,
         functionName: "simpleBet",
         args: [BigInt(contractId), selectedSide],
         value: amount,
-        chainId: baseSepolia.id,
+        chainId,
       });
     } catch (err) {
       
@@ -431,11 +432,11 @@ export default function AgreementDetailPage() {
         status: (contract?.status === 0 ? "open" : contract?.status === 1 ? "closed" : "resolved"),
       });
       await writeContract({
-        address: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
+        address: getAgreementFactoryAddress(chainId) as `0x${string}`,
         abi: AGREEMENT_FACTORY_ABI,
         functionName: "addComment",
         args: [BigInt(contractId), comment.trim()],
-        chainId: baseSepolia.id,
+        chainId,
       });
     } catch (err) {
       console.error("Error adding comment:", err);
@@ -559,7 +560,7 @@ export default function AgreementDetailPage() {
                       contractId,
                       endedAt: new Date().toISOString(),
                       bettingEndTime: Number(contract.bettingEndTime ?? 0),
-                      chainId: baseSepolia.id,
+                      chainId,
                     }),
                     cache: 'no-store',
                     keepalive: true,
@@ -727,6 +728,7 @@ export default function AgreementDetailPage() {
         comment={comment}
         setComment={setComment}
         onSubmitComment={handleComment}
+        chainId={chainId}
         onBetClick={() => {
           trackBetEvent(EVENTS.TRANSACTION_INITIATED, {
             debate_id: String(contractId),
@@ -765,6 +767,7 @@ export default function AgreementDetailPage() {
         onBet={handleBet}
         isPending={isPending}
         isConfirming={isConfirming}
+        chainId={chainId}
         isCorrectChain={isCorrectChain}
         isSwitching={isSwitching}
         needsSwitch={needsSwitch}
