@@ -15,6 +15,17 @@ Always run these commands after making changes:
 - `npm run lint` - Ensure code follows project linting rules
 - `npm run build` - Verify the build compiles without errors
 
+## AI Agent Betting Feature
+
+The application includes an AI-powered betting assistant that allows users to place bets using natural language. Key files:
+
+- `/components/ai-agent/` - AI agent components (AIAgentPanel, ChatInterface, SpendPermissionSetup)
+- `/app/api/ai/` - API routes for AI chat, wallet creation, and bet execution
+- `/lib/spend-permissions.ts` - ETH spend permission utilities
+- `/lib/openai.ts` - OpenAI integration for natural language processing
+
+The AI agent is integrated into the agreement detail page (`/app/agreement/[id]/page.tsx`) as a floating panel.
+
 ## Architecture Overview
 
 ### Tech Stack

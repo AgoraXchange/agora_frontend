@@ -19,6 +19,7 @@ import { EVENTS } from "@/lib/analytics";
 import { useEnsureChain } from "@/lib/hooks/useEnsureChain";
 // Toasts removed
 import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { AIAgentPanel } from "@/components/ai-agent";
 
 export default function AgreementDetailPage() {
   const params = useParams();
@@ -807,6 +808,12 @@ export default function AgreementDetailPage() {
       )}
 
       {/* Toasts removed */}
+
+      {/* AI Agent Panel */}
+      <AIAgentPanel 
+        agreementId={contractId.toString()}
+        agreementTitle={contract.topic}
+      />
     </div>
   );
 }
