@@ -65,7 +65,11 @@ export async function POST(request: NextRequest) {
     // Option 1: Use fixed AI agent wallet from environment
     if (process.env.AI_AGENT_PRIVATE_KEY) {
       try {
-        const account = privateKeyToAccount(process.env.AI_AGENT_PRIVATE_KEY as `0x${string}`);
+        // Ensure private key has 0x prefix
+        const formattedPrivateKey = process.env.AI_AGENT_PRIVATE_KEY.startsWith('0x') 
+          ? process.env.AI_AGENT_PRIVATE_KEY 
+          : `0x${process.env.AI_AGENT_PRIVATE_KEY}`;
+        const account = privateKeyToAccount(formattedPrivateKey as `0x${string}`);
         agentWalletAddress = account.address;
         method = 'fixed_private_key';
         console.log('Using fixed private key wallet:', agentWalletAddress);
@@ -147,7 +151,9 @@ export async function GET(request: NextRequest) {
 
     // Even without Redis, we can generate a deterministic address
     const agentWalletAddress = process.env.AI_AGENT_PRIVATE_KEY 
-      ? privateKeyToAccount(process.env.AI_AGENT_PRIVATE_KEY as `0x${string}`).address
+      ? privateKeyToAccount((process.env.AI_AGENT_PRIVATE_KEY.startsWith('0x') 
+          ? process.env.AI_AGENT_PRIVATE_KEY 
+          : `0x${process.env.AI_AGENT_PRIVATE_KEY}`) as `0x${string}`).address
       : generateAgentWallet(userAddress);
       
     return NextResponse.json({

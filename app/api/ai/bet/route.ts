@@ -6,6 +6,57 @@ import { privateKeyToAccount } from 'viem/accounts';
 import { baseSepolia } from 'viem/chains';
 import { AGREEMENT_FACTORY_ADDRESS, AGREEMENT_FACTORY_ABI } from '@/lib/agreementFactoryABI';
 
+const SPEND_PERMISSION_MANAGER_ADDRESS = '0xf85210B21cC50302F477BA56686d2019dC9b67Ad';
+const SPEND_PERMISSION_MANAGER_ABI = [
+  {
+    "type": "function",
+    "name": "approve",
+    "inputs": [
+      {
+        "name": "spendPermission",
+        "type": "tuple",
+        "components": [
+          {"name": "account", "type": "address"},
+          {"name": "spender", "type": "address"},
+          {"name": "token", "type": "address"},
+          {"name": "allowance", "type": "uint160"},
+          {"name": "period", "type": "uint48"},
+          {"name": "start", "type": "uint48"},
+          {"name": "end", "type": "uint48"},
+          {"name": "salt", "type": "uint256"},
+          {"name": "extraData", "type": "bytes"}
+        ]
+      }
+    ],
+    "outputs": [{"name": "", "type": "bool"}],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "spend",
+    "inputs": [
+      {
+        "name": "spendPermission",
+        "type": "tuple",
+        "components": [
+          {"name": "account", "type": "address"},
+          {"name": "spender", "type": "address"},
+          {"name": "token", "type": "address"},
+          {"name": "allowance", "type": "uint160"},
+          {"name": "period", "type": "uint48"},
+          {"name": "start", "type": "uint48"},
+          {"name": "end", "type": "uint48"},
+          {"name": "salt", "type": "uint256"},
+          {"name": "extraData", "type": "bytes"}
+        ]
+      },
+      {"name": "value", "type": "uint160"}
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  }
+] as const;
+
 // Initialize Redis client (only if Redis URL is available)
 let redis = null;
 try {
@@ -20,7 +71,7 @@ try {
   redis = null;
 }
 
-// Execute betting using EIP-712 spend permissions - AI agent places bet automatically
+// Execute betting using SpendPermissionManager - spends from user wallet via approved permission
 async function executeAgoraBet(
   agreementId: string,
   side: 'partyA' | 'partyB',
@@ -32,8 +83,12 @@ async function executeAgoraBet(
     // Convert side to contract format (1 for partyA, 2 for partyB)
     const sideNumber = side === 'partyA' ? 1 : 2;
     
-    console.log('Executing bet with EIP-712 fallback method...');
+    console.log('Executing bet using SpendPermissionManager...');
     console.log('Permission data:', permission);
+    
+    if (!permission || !permission.approved) {
+      throw new Error('Spend permission not approved. Please approve permission first.');
+    }
     
     // Get AI agent private key
     const agentPrivateKey = process.env.AI_AGENT_PRIVATE_KEY;
@@ -59,31 +114,88 @@ async function executeAgoraBet(
       transport: http(process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org'),
     });
     
-    console.log('AI agent wallet:', account.address);
+    console.log('AI agent (spender) wallet:', account.address);
     
-    // Check if we have enough ETH in the AI agent wallet
-    const balance = await publicClient.getBalance({
-      address: account.address,
-    });
+    // Convert stored permission back to proper format
+    const spendPermission = {
+      account: permission.permission.account as `0x${string}`,
+      spender: permission.permission.spender as `0x${string}`,
+      token: permission.permission.token as `0x${string}`,
+      allowance: BigInt(permission.permission.allowance),
+      period: permission.permission.period,
+      start: permission.permission.start,
+      end: permission.permission.end,
+      salt: BigInt(permission.permission.salt),
+      extraData: permission.permission.extraData as `0x${string}`,
+    };
     
-    console.log('AI agent balance:', balance.toString(), 'wei');
+    console.log('Using approved spend permission:', spendPermission);
     
-    if (balance < amountETH) {
-      throw new Error(`Insufficient balance. Agent has ${balance.toString()} wei, need ${amountETH.toString()} wei`);
+    // Check user's ETH balance
+    const userBalance = await publicClient.getBalance({ address: spendPermission.account });
+    console.log('User balance:', userBalance.toString());
+    console.log('Required amount:', amountETH.toString());
+    
+    if (userBalance < amountETH) {
+      throw new Error(`Insufficient balance. User has ${userBalance.toString()} wei, need ${amountETH.toString()} wei`);
     }
     
-    // Place the actual bet transaction
+    // Use SpendPermissionManager to spend from user's wallet directly to the betting contract
+    // The correct approach is to have SpendPermissionManager send the funds directly to the contract
+    
+    // Create the bet call data that SpendPermissionManager should execute
     const betCallData = encodeFunctionData({
       abi: AGREEMENT_FACTORY_ABI,
       functionName: 'simpleBet',
       args: [BigInt(agreementId), sideNumber],
     });
     
-    console.log('Placing real bet transaction...');
-    console.log('Agreement ID:', agreementId);
-    console.log('Side:', sideNumber);
-    console.log('Amount:', amountETH.toString());
+    console.log('Calling SpendPermissionManager.spend with bet execution...');
     
+    // Check if AI agent has any ETH balance first
+    const agentBalance = await publicClient.getBalance({ address: account.address });
+    console.log('AI agent balance before spend:', agentBalance.toString());
+    
+    // SpendPermissionManager should transfer funds from user to AI agent
+    // The spend() function should be called by the spender (AI agent) to claim funds
+    let spendHash: `0x${string}`;
+    try {
+      spendHash = await walletClient.writeContract({
+        address: SPEND_PERMISSION_MANAGER_ADDRESS as `0x${string}`,
+        abi: SPEND_PERMISSION_MANAGER_ABI,
+        functionName: 'spend',
+        args: [spendPermission, amountETH],
+        chainId: baseSepolia.id,
+        gas: 1000000n, // Add explicit gas limit
+      });
+      
+      console.log('SpendPermissionManager.spend transaction hash:', spendHash);
+    } catch (spendError) {
+      console.error('SpendPermissionManager.spend failed:', spendError);
+      
+      // Try to get more details about the error
+      if (spendError instanceof Error) {
+        console.error('Spend error message:', spendError.message);
+        console.error('Spend error cause:', spendError.cause);
+      }
+      
+      throw new Error(`SpendPermissionManager.spend failed: ${spendError instanceof Error ? spendError.message : 'Unknown error'}`);
+    }
+    
+    // Wait for spend transaction
+    const spendReceipt = await publicClient.waitForTransactionReceipt({ hash: spendHash });
+    console.log('SpendPermissionManager.spend confirmed:', spendReceipt.transactionHash);
+    
+    // Check AI agent balance after spend
+    const agentBalanceAfter = await publicClient.getBalance({ address: account.address });
+    console.log('AI agent balance after spend:', agentBalanceAfter.toString());
+    
+    // Verify the AI agent received the funds
+    if (agentBalanceAfter < amountETH) {
+      throw new Error(`AI agent didn't receive expected funds. Balance: ${agentBalanceAfter.toString()}, Expected: ${amountETH.toString()}`);
+    }
+    
+    // Now AI agent has the ETH, place the bet
     const betHash = await walletClient.sendTransaction({
       to: AGREEMENT_FACTORY_ADDRESS as `0x${string}`,
       data: betCallData,
@@ -91,7 +203,7 @@ async function executeAgoraBet(
       chain: baseSepolia,
     });
     
-    console.log('Real bet transaction executed:', betHash);
+    console.log('Bet transaction executed:', betHash);
     
     // Store successful bet in Redis (optional)
     if (redis) {
@@ -104,10 +216,11 @@ async function executeAgoraBet(
           amount: amountETH.toString(),
           userAddress: userAddress.toLowerCase(),
           transactionHash: betHash,
+          spendTransactionHash: spendHash,
           timestamp: Date.now(),
           status: 'confirmed',
-          method: 'eip712_fallback',
-          permissionSignature: permission?.signature || 'N/A',
+          method: 'spend_permission_manager',
+          permissionTransactionHash: permission?.transactionHash || 'N/A',
         }, {
           ex: 86400 * 7, // Expire after 7 days
         });
@@ -121,8 +234,9 @@ async function executeAgoraBet(
     
     return {
       transactionHash: betHash,
+      spendTransactionHash: spendHash,
       status: 'confirmed',
-      message: 'Bet placed successfully using AI agent wallet!',
+      message: 'Bet placed successfully using user wallet via spend permission!',
     };
   } catch (error) {
     console.error('Bet execution error:', error);

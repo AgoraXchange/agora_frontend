@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useAccount, useChainId, useSignTypedData } from 'wagmi';
+import { useAccount, useChainId, useConfig } from 'wagmi';
+import { writeContract, waitForTransactionReceipt } from 'wagmi/actions';
 import { baseSepolia } from 'viem/chains';
 import { parseEther } from 'viem';
 
@@ -9,10 +10,37 @@ interface SimpleSpendPermissionFallbackProps {
   onPermissionGranted?: () => void;
 }
 
+const SPEND_PERMISSION_MANAGER_ADDRESS = '0xf85210B21cC50302F477BA56686d2019dC9b67Ad';
+const SPEND_PERMISSION_MANAGER_ABI = [
+  {
+    "type": "function",
+    "name": "approve",
+    "inputs": [
+      {
+        "name": "spendPermission",
+        "type": "tuple",
+        "components": [
+          {"name": "account", "type": "address"},
+          {"name": "spender", "type": "address"},
+          {"name": "token", "type": "address"},
+          {"name": "allowance", "type": "uint160"},
+          {"name": "period", "type": "uint48"},
+          {"name": "start", "type": "uint48"},
+          {"name": "end", "type": "uint48"},
+          {"name": "salt", "type": "uint256"},
+          {"name": "extraData", "type": "bytes"}
+        ]
+      }
+    ],
+    "outputs": [{"name": "", "type": "bool"}],
+    "stateMutability": "nonpayable"
+  }
+] as const;
+
 export function SimpleSpendPermissionFallback({ onPermissionGranted }: SimpleSpendPermissionFallbackProps) {
   const { address: userAddress } = useAccount();
   const chainId = useChainId();
-  const { signTypedDataAsync } = useSignTypedData();
+  const config = useConfig();
   const [dailyLimit, setDailyLimit] = useState(0.01);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -89,20 +117,33 @@ export function SimpleSpendPermissionFallback({ onPermissionGranted }: SimpleSpe
         extraData: '0x' as `0x${string}`,
       };
       
-      // Sign the spend permission
-      const signature = await signTypedDataAsync({
-        domain,
-        types,
-        primaryType: 'SpendPermission',
-        message: values,
+      // Directly approve the spend permission via transaction
+      console.log('Sending approve transaction to SpendPermissionManager...');
+      
+      // Send approve transaction
+      const hash = await writeContract(config, {
+        address: SPEND_PERMISSION_MANAGER_ADDRESS as `0x${string}`,
+        abi: SPEND_PERMISSION_MANAGER_ABI,
+        functionName: 'approve',
+        args: [values],
+        chainId: baseSepolia.id,
       });
       
-      console.log('Spend permission signed:', signature);
+      console.log('Approval transaction sent:', hash);
+      
+      // Wait for transaction confirmation
+      const receipt = await waitForTransactionReceipt(config, {
+        hash,
+        chainId: baseSepolia.id,
+      });
+      
+      console.log('Spend permission approved on-chain:', receipt.transactionHash);
       
       // Create permission object
       const permission = {
         permission: values,
-        signature,
+        approved: true,
+        transactionHash: receipt.transactionHash,
         domain,
         types,
       };
@@ -122,8 +163,8 @@ export function SimpleSpendPermissionFallback({ onPermissionGranted }: SimpleSpe
             salt: permission.permission.salt.toString(),
           }
         },
-        status: 'granted',
-        method: 'eip712_fallback',
+        status: 'approved',
+        method: 'direct_approve',
       };
       
       localStorage.setItem('agora_spend_permission', JSON.stringify(permissionData));
@@ -175,9 +216,12 @@ export function SimpleSpendPermissionFallback({ onPermissionGranted }: SimpleSpe
 
   return (
     <div className="p-6 bg-white border border-gray-200 rounded-lg shadow-sm">
-      <h3 className="text-lg font-semibold mb-4">Enable AI Agent Betting (Fallback)</h3>
+      <h3 className="text-lg font-semibold mb-4">Enable AI Agent Betting</h3>
       <p className="text-sm text-gray-600 mb-4">
-        Grant the AI agent permission to place bets on your behalf with a daily spending limit.
+        Approve the AI agent to place bets on your behalf with a daily spending limit.
+      </p>
+      <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded mb-4">
+        ⚠️ This will send a transaction to approve spend permissions on-chain.
       </p>
       
       <div className="mb-4">
@@ -219,7 +263,7 @@ export function SimpleSpendPermissionFallback({ onPermissionGranted }: SimpleSpe
             : 'bg-blue-600 text-white hover:bg-blue-700'
         }`}
       >
-        {isLoading ? 'Setting up...' : 'Grant Permission (Fallback)'}
+        {isLoading ? 'Approving...' : 'Approve Permission'}
       </button>
 
       {!userAddress && (
@@ -228,8 +272,8 @@ export function SimpleSpendPermissionFallback({ onPermissionGranted }: SimpleSpe
         </p>
       )}
       
-      <p className="mt-3 text-xs text-blue-600 bg-blue-50 p-2 rounded">
-        💡 Fallback mode: This uses EIP-712 signatures for spend permissions.
+      <p className="mt-3 text-xs text-green-600 bg-green-50 p-2 rounded">
+        ✅ Direct approval: This sends an on-chain transaction to approve spend permissions.
       </p>
     </div>
   );
