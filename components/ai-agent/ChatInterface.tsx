@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useAccount } from 'wagmi';
-import { generateChatResponse, ChatMessage } from '@/lib/openai';
+import { generateChatResponse, ChatMessage, parseBettingIntent } from '@/lib/openai';
 
 interface Message {
   id: string;
@@ -29,6 +29,7 @@ export function ChatInterface({ agreementId, agreementTitle }: ChatInterfaceProp
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
 
   // Add welcome message on mount
   useEffect(() => {
@@ -60,9 +61,12 @@ export function ChatInterface({ agreementId, agreementTitle }: ChatInterfaceProp
     setIsLoading(true);
 
     try {
-      // Check if user has granted spend permission
+      // Parse betting intent from user message
+      const intent = parseBettingIntent(inputValue);
+      
+      // Check if user has granted spend permission for betting intents
       const permissionData = localStorage.getItem('agora_spend_permission');
-      if (!permissionData && inputValue.toLowerCase().includes('bet')) {
+      if (intent.hasIntent && !permissionData) {
         const promptMessage: Message = {
           id: (Date.now() + 1).toString(),
           content: 'Before I can place bets for you, you need to grant me spending permission. Please use the "Enable AI Agent" section above to set this up.',
@@ -70,10 +74,92 @@ export function ChatInterface({ agreementId, agreementTitle }: ChatInterfaceProp
           timestamp: new Date(),
         };
         setMessages(prev => [...prev, promptMessage]);
+        setIsLoading(false);
         return;
       }
 
-      // Convert messages to ChatMessage format
+      // If betting intent detected and we have context
+      if (intent.hasIntent && agreementId) {
+        // Check what information is missing
+        if (intent.needsMoreInfo.length > 0) {
+          let missingInfo = [];
+          if (intent.needsMoreInfo.includes('amount')) {
+            missingInfo.push('the amount you want to bet (e.g., 0.01 ETH)');
+          }
+          if (intent.needsMoreInfo.includes('side')) {
+            missingInfo.push('which side you want to bet on (Party A or Party B)');
+          }
+          
+          const clarifyMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            content: `I understand you want to place a bet on "${agreementTitle}". Please specify ${missingInfo.join(' and ')}.`,
+            sender: 'agent',
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, clarifyMessage]);
+          setIsLoading(false);
+          return;
+        }
+        
+        // We have all the info, execute the bet
+        if (intent.possibleAmount && intent.possibleSide && permissionData) {
+          const permission = JSON.parse(permissionData);
+          
+          // Confirm the bet details
+          const confirmMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            content: `🎯 Placing bet:\n• Agreement: ${agreementTitle}\n• Side: ${intent.possibleSide === 'partyA' ? 'Party A' : 'Party B'}\n• Amount: ${intent.possibleAmount} ETH\n\nProcessing...`,
+            sender: 'agent',
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, confirmMessage]);
+          
+          // Execute the bet automatically via AI agent with spend permission
+          const processingMessage: Message = {
+            id: (Date.now() + 2).toString(),
+            content: `🤖 Placing bet automatically using your spend permission...\n\n• Amount: ${intent.possibleAmount} ETH\n• Side: ${intent.possibleSide === 'partyA' ? 'Party A' : 'Party B'}\n• Agreement: ${agreementTitle}`,
+            sender: 'agent',
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, processingMessage]);
+          
+          // Execute the bet via API (AI agent will handle it)
+          const betResponse = await fetch('/api/ai/bet', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-user-address': userAddress || '',
+              'x-spend-permission': JSON.stringify(permission.permission || permission),
+            },
+            body: JSON.stringify({
+              agreementId,
+              side: intent.possibleSide,
+              amountETH: intent.possibleAmount,
+            }),
+          });
+          
+          const betResult = await betResponse.json();
+          
+          if (betResult.success) {
+            const successMessage: Message = {
+              id: (Date.now() + 3).toString(),
+              content: `✅ ${betResult.message}\n\nTransaction Hash: ${betResult.transactionHash}\n\nYour bet has been placed automatically on the blockchain!`,
+              sender: 'agent',
+              timestamp: new Date(),
+              details: betResult.details,
+            };
+            // Replace processing message with success
+            setMessages(prev => prev.filter(m => m.id !== processingMessage.id).concat(successMessage));
+          } else {
+            throw new Error(betResult.error || 'Failed to place bet');
+          }
+          
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // Default flow: Use AI for general conversation
       const chatMessages: ChatMessage[] = messages.map(m => ({
         role: m.sender === 'user' ? 'user' : 'assistant',
         content: m.content,
@@ -101,7 +187,7 @@ export function ChatInterface({ agreementId, agreementTitle }: ChatInterfaceProp
 
       setMessages(prev => [...prev, agentMessage]);
 
-      // If a bet was placed, show transaction details
+      // If AI suggested a bet through function calling
       if (response.toolCall && response.details?.transactionHash) {
         const txMessage: Message = {
           id: (Date.now() + 2).toString(),
@@ -115,7 +201,7 @@ export function ChatInterface({ agreementId, agreementTitle }: ChatInterfaceProp
       console.error('Chat error:', error);
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: 'Sorry, I encountered an error. Please try again.',
+        content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
         sender: 'agent',
         timestamp: new Date(),
       };

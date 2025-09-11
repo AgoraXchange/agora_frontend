@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { SimpleSpendPermissionSetup } from './SimpleSpendPermissionSetup';
+import { useState, useEffect } from 'react';
+import { SimpleSpendPermissionFallback } from './SimpleSpendPermissionFallback';
 import { ChatInterface } from './ChatInterface';
 import { useAccount } from 'wagmi';
 
@@ -16,20 +16,30 @@ export function AIAgentPanel({ agreementId, agreementTitle }: AIAgentPanelProps)
   const [permissionGranted, setPermissionGranted] = useState(false);
 
   // Check if permission is already granted
-  useState(() => {
+  useEffect(() => {
     const stored = localStorage.getItem('agora_spend_permission');
+    console.log('🔍 Checking stored permission:', stored);
     if (stored) {
       try {
         const data = JSON.parse(stored);
+        console.log('📊 Permission data:', data);
         // Check if permission is still valid (within 24 hours)
-        if (data.timestamp && Date.now() - data.timestamp < 86400000) {
+        const isValid = data.timestamp && Date.now() - data.timestamp < 86400000;
+        console.log('✅ Permission valid:', isValid);
+        if (isValid) {
           setPermissionGranted(true);
+        } else {
+          console.log('⏰ Permission expired, removing...');
+          localStorage.removeItem('agora_spend_permission');
         }
       } catch (e) {
-        console.error('Failed to parse stored permission:', e);
+        console.error('❌ Failed to parse stored permission:', e);
+        localStorage.removeItem('agora_spend_permission');
       }
+    } else {
+      console.log('🚫 No stored permission found');
     }
-  });
+  }, []);
 
   return (
     <div className="fixed bottom-4 right-4 z-50">
@@ -113,7 +123,25 @@ export function AIAgentPanel({ agreementId, agreementTitle }: AIAgentPanelProps)
               <>
                 {!permissionGranted && (
                   <div className="p-4 border-b border-gray-200">
-                    <SimpleSpendPermissionSetup onPermissionGranted={() => setPermissionGranted(true)} />
+                    <SimpleSpendPermissionFallback onPermissionGranted={() => setPermissionGranted(true)} />
+                  </div>
+                )}
+                
+                {permissionGranted && (
+                  <div className="p-2 border-b border-gray-200 bg-green-50">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-green-700">✅ AI Agent Enabled</span>
+                      <button
+                        onClick={() => {
+                          localStorage.removeItem('agora_spend_permission');
+                          setPermissionGranted(false);
+                          console.log('🔄 Permission reset');
+                        }}
+                        className="text-xs text-red-600 hover:text-red-800 underline"
+                      >
+                        Reset Permission
+                      </button>
+                    </div>
                   </div>
                 )}
                 

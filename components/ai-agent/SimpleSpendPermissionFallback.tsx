@@ -1,27 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import { useAccount, useChainId, usePublicClient, useWalletClient } from 'wagmi';
-import { requestSpendPermission } from '@base-org/account/spend-permission';
-import { createBaseAccountSDK } from '@base-org/account';
+import { useAccount, useChainId, useSignTypedData } from 'wagmi';
 import { baseSepolia } from 'viem/chains';
 import { parseEther } from 'viem';
 
-// Type declaration for window.ethereum
-declare global {
-  interface Window {
-    ethereum?: any;
-  }
-}
-
-interface SimpleSpendPermissionSetupProps {
+interface SimpleSpendPermissionFallbackProps {
   onPermissionGranted?: () => void;
 }
 
-export function SimpleSpendPermissionSetup({ onPermissionGranted }: SimpleSpendPermissionSetupProps) {
+export function SimpleSpendPermissionFallback({ onPermissionGranted }: SimpleSpendPermissionFallbackProps) {
   const { address: userAddress } = useAccount();
   const chainId = useChainId();
-  const { data: walletClient } = useWalletClient();
+  const { signTypedDataAsync } = useSignTypedData();
   const [dailyLimit, setDailyLimit] = useState(0.01);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +28,11 @@ export function SimpleSpendPermissionSetup({ onPermissionGranted }: SimpleSpendP
     setError(null);
 
     try {
+      // Check if we're on the correct chain
+      if (chainId !== baseSepolia.id) {
+        throw new Error('Please switch to Base Sepolia network (Chain ID: 84532)');
+      }
+
       // Get AI agent wallet address from backend
       const walletResponse = await fetch('/api/ai/wallet', { 
         method: 'POST',
@@ -50,88 +46,87 @@ export function SimpleSpendPermissionSetup({ onPermissionGranted }: SimpleSpendP
 
       const { agentWalletAddress } = await walletResponse.json();
       
-      // Check if we're on the correct chain
-      if (chainId !== baseSepolia.id) {
-        throw new Error('Please switch to Base Sepolia network (Chain ID: 84532)');
-      }
-      
-      if (!walletClient) {
-        throw new Error('Wallet client not available. Please ensure your wallet is connected.');
-      }
-      
-      console.log('Setting up spend permission...');
+      console.log('Setting up fallback spend permission...');
       console.log('User address:', userAddress);
       console.log('Agent address:', agentWalletAddress);
       console.log('Chain ID:', chainId);
       console.log('Daily limit:', dailyLimit);
       
-      // Check if window.ethereum is available
-      if (typeof window === 'undefined' || !window.ethereum) {
-        throw new Error('MetaMask or compatible wallet not found');
-      }
+      // Create EIP-712 typed data for spend permission
+      const domain = {
+        name: 'SpendPermissionManager',
+        version: '1',
+        chainId: baseSepolia.id,
+        verifyingContract: '0xf85210B21cC50302F477BA56686d2019dC9b67Ad' as `0x${string}`,
+      };
       
-      // Create Base Account SDK with window.ethereum
-      const sdk = createBaseAccountSDK({
-        appName: 'Agora AI Betting Agent',
-        appLogoUrl: 'https://agora.finance/logo.png',
-        appChainIds: [baseSepolia.id],
+      const types = {
+        SpendPermission: [
+          { name: 'account', type: 'address' },
+          { name: 'spender', type: 'address' },
+          { name: 'token', type: 'address' },
+          { name: 'allowance', type: 'uint160' },
+          { name: 'period', type: 'uint48' },
+          { name: 'start', type: 'uint48' },
+          { name: 'end', type: 'uint48' },
+          { name: 'salt', type: 'uint256' },
+          { name: 'extraData', type: 'bytes' },
+        ],
+      };
+      
+      const now = Math.floor(Date.now() / 1000);
+      const oneDay = 24 * 60 * 60;
+      
+      const values = {
+        account: userAddress as `0x${string}`,
+        spender: agentWalletAddress as `0x${string}`,
+        token: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE' as `0x${string}`, // Native ETH
+        allowance: parseEther(dailyLimit.toString()),
+        period: oneDay, // 1 day in seconds
+        start: now,
+        end: now + (30 * oneDay), // 30 days from now
+        salt: BigInt(Math.floor(Math.random() * 1000000)),
+        extraData: '0x' as `0x${string}`,
+      };
+      
+      // Sign the spend permission
+      const signature = await signTypedDataAsync({
+        domain,
+        types,
+        primaryType: 'SpendPermission',
+        message: values,
       });
       
-      console.log('Base Account SDK created');
+      console.log('Spend permission signed:', signature);
       
-      // Create spend permission using different provider approaches
-      let permission;
-      let providerUsed = 'unknown';
+      // Create permission object
+      const permission = {
+        permission: values,
+        signature,
+        domain,
+        types,
+      };
       
-      // Try multiple provider approaches
-      const providers = [
-        { name: 'sdk', provider: sdk.getProvider() },
-        { name: 'window.ethereum', provider: window.ethereum },
-        { name: 'walletClient', provider: walletClient },
-      ];
-      
-      let lastError;
-      for (const { name, provider } of providers) {
-        try {
-          console.log(`Trying ${name} provider...`);
-          
-          permission = await requestSpendPermission({
-            account: userAddress as `0x${string}`,
-            spender: agentWalletAddress as `0x${string}`,
-            token: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE' as `0x${string}`, // Native ETH
-            chainId: baseSepolia.id,
-            allowance: parseEther(dailyLimit.toString()),
-            periodInDays: 1, // Daily reset
-            provider: provider,
-          });
-          
-          providerUsed = name;
-          console.log(`Success with ${name} provider!`);
-          break;
-          
-        } catch (providerError) {
-          console.warn(`${name} provider failed:`, providerError);
-          lastError = providerError;
-        }
-      }
-      
-      if (!permission) {
-        throw lastError || new Error('All provider approaches failed');
-      }
-      
-      console.log('Spend permission created:', permission);
-      
-      // Store permission details for later use
-      localStorage.setItem('agora_spend_permission', JSON.stringify({
+      // Store permission details for later use (convert BigInt values to strings for JSON)
+      const permissionData = {
         userAddress,
         agentWalletAddress,
         dailyLimit,
         chainId: baseSepolia.id,
         timestamp: Date.now(),
-        permission,
+        permission: {
+          ...permission,
+          permission: {
+            ...permission.permission,
+            allowance: permission.permission.allowance.toString(),
+            salt: permission.permission.salt.toString(),
+          }
+        },
         status: 'granted',
-        providerUsed,
-      }));
+        method: 'eip712_fallback',
+      };
+      
+      localStorage.setItem('agora_spend_permission', JSON.stringify(permissionData));
 
       setIsSetup(true);
       onPermissionGranted?.();
@@ -146,12 +141,8 @@ export function SimpleSpendPermissionSetup({ onPermissionGranted }: SimpleSpendP
         
         if (message.includes('chain id')) {
           errorMessage = 'Please switch to Base Sepolia network (Chain ID: 84532) in your wallet.';
-        } else if (message.includes('client') || message.includes('provider')) {
-          errorMessage = 'Wallet connection issue. Please disconnect and reconnect your wallet.';
         } else if (message.includes('rejected') || message.includes('denied')) {
           errorMessage = 'Transaction was rejected. Please try again and approve the spend permission.';
-        } else if (message.includes('base account')) {
-          errorMessage = 'Base Account required. Please use a Base Account compatible wallet.';
         } else {
           errorMessage = `Setup failed: ${err.message}`;
         }
@@ -184,7 +175,7 @@ export function SimpleSpendPermissionSetup({ onPermissionGranted }: SimpleSpendP
 
   return (
     <div className="p-6 bg-white border border-gray-200 rounded-lg shadow-sm">
-      <h3 className="text-lg font-semibold mb-4">Enable AI Agent Betting</h3>
+      <h3 className="text-lg font-semibold mb-4">Enable AI Agent Betting (Fallback)</h3>
       <p className="text-sm text-gray-600 mb-4">
         Grant the AI agent permission to place bets on your behalf with a daily spending limit.
       </p>
@@ -228,7 +219,7 @@ export function SimpleSpendPermissionSetup({ onPermissionGranted }: SimpleSpendP
             : 'bg-blue-600 text-white hover:bg-blue-700'
         }`}
       >
-        {isLoading ? 'Setting up...' : 'Grant Permission'}
+        {isLoading ? 'Setting up...' : 'Grant Permission (Fallback)'}
       </button>
 
       {!userAddress && (
@@ -238,7 +229,7 @@ export function SimpleSpendPermissionSetup({ onPermissionGranted }: SimpleSpendP
       )}
       
       <p className="mt-3 text-xs text-blue-600 bg-blue-50 p-2 rounded">
-        💡 This will request a spend permission signature allowing the AI to bet on your behalf.
+        💡 Fallback mode: This uses EIP-712 signatures for spend permissions.
       </p>
     </div>
   );

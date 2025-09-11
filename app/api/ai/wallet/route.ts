@@ -1,20 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Redis } from '@upstash/redis';
-import { CdpClient } from '@coinbase/cdp-sdk';
+import { createWalletClient, http } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
+import { baseSepolia } from 'viem/chains';
 import crypto from 'crypto';
 
 // Initialize Redis client (only if Redis URL is available)
-const redis = process.env.REDIS_URL && process.env.REDIS_TOKEN 
-  ? new Redis({
+let redis = null;
+try {
+  if (process.env.REDIS_URL && process.env.REDIS_TOKEN) {
+    redis = new Redis({
       url: process.env.REDIS_URL,
       token: process.env.REDIS_TOKEN,
-    })
-  : null;
-
-// Initialize CDP client (only if credentials are available)
-const cdp = process.env.CDP_API_KEY_ID && process.env.CDP_API_KEY_SECRET 
-  ? new CdpClient()
-  : null;
+    });
+  }
+} catch (error) {
+  console.warn('Redis initialization failed:', error);
+  redis = null;
+}
 
 // Cache key for user's AI agent wallet
 const getWalletCacheKey = (userAddress: string) => `agora:ai:wallet:${userAddress.toLowerCase()}`;
@@ -22,7 +25,7 @@ const getWalletCacheKey = (userAddress: string) => `agora:ai:wallet:${userAddres
 // Generate a deterministic wallet address for the AI agent
 function generateAgentWallet(userAddress: string): string {
   // Create a deterministic address based on user address and a secret
-  const secret = process.env.CDP_API_KEY_SECRET || 'agora-ai-agent-secret';
+  const secret = process.env.AI_AGENT_PRIVATE_KEY || 'agora-ai-agent-secret';
   const hash = crypto.createHmac('sha256', secret).update(userAddress.toLowerCase()).digest('hex');
   // Take first 40 chars and prefix with 0x to make a valid address
   return `0x${hash.substring(0, 40)}`;
@@ -36,64 +39,67 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User address required' }, { status: 400 });
     }
 
+    console.log('Creating AI wallet for user:', userAddress);
+
     // Check if we already have a wallet for this user (if Redis is available)
     if (redis) {
-      const cacheKey = getWalletCacheKey(userAddress);
-      const cachedWallet = await redis.get(cacheKey);
-      
-      if (cachedWallet && typeof cachedWallet === 'object' && 'address' in cachedWallet) {
-        return NextResponse.json({
-          agentWalletAddress: cachedWallet.address,
-          cached: true,
-        });
+      try {
+        const cacheKey = getWalletCacheKey(userAddress);
+        const cachedWallet = await redis.get(cacheKey);
+        
+        if (cachedWallet && typeof cachedWallet === 'object' && 'address' in cachedWallet) {
+          console.log('Returning cached wallet:', cachedWallet.address);
+          return NextResponse.json({
+            agentWalletAddress: cachedWallet.address,
+            cached: true,
+          });
+        }
+      } catch (redisError) {
+        console.warn('Redis lookup failed:', redisError);
       }
     }
 
     let agentWalletAddress: string;
     let method: string;
 
-    // Try to create a real CDP wallet first, fallback to deterministic
-    if (cdp) {
+    // Option 1: Use fixed AI agent wallet from environment
+    if (process.env.AI_AGENT_PRIVATE_KEY) {
       try {
-        const account = await cdp.evm.createAccount();
+        const account = privateKeyToAccount(process.env.AI_AGENT_PRIVATE_KEY as `0x${string}`);
         agentWalletAddress = account.address;
-        method = 'cdp_wallet';
-        
-        // Store CDP wallet info in Redis for future use (if available)
-        if (redis) {
-          const cacheKey = getWalletCacheKey(userAddress);
-          await redis.set(cacheKey, {
-            address: agentWalletAddress,
-            createdAt: Date.now(),
-            userAddress: userAddress.toLowerCase(),
-            method: 'cdp_wallet'
-          }, {
-            ex: 86400 * 30, // Expire after 30 days
-          });
-        }
+        method = 'fixed_private_key';
+        console.log('Using fixed private key wallet:', agentWalletAddress);
       } catch (error) {
-        console.warn('CDP wallet creation failed, falling back to deterministic:', error);
+        console.warn('Fixed private key failed:', error);
         agentWalletAddress = generateAgentWallet(userAddress);
         method = 'deterministic_fallback';
       }
     } else {
-      // Generate a deterministic wallet address for this user
+      // Fallback to deterministic
+      console.log('No AI_AGENT_PRIVATE_KEY found, using deterministic wallet');
       agentWalletAddress = generateAgentWallet(userAddress);
       method = 'deterministic';
-      
-      // Store wallet info in Redis for future use (if available)
-      if (redis) {
+    }
+    
+    // Store wallet info in Redis for future use (if available)
+    if (redis) {
+      try {
         const cacheKey = getWalletCacheKey(userAddress);
         await redis.set(cacheKey, {
           address: agentWalletAddress,
           createdAt: Date.now(),
           userAddress: userAddress.toLowerCase(),
-          method: 'deterministic'
+          method
         }, {
           ex: 86400 * 30, // Expire after 30 days
         });
+        console.log('Wallet cached in Redis');
+      } catch (redisError) {
+        console.warn('Redis cache failed:', redisError);
       }
     }
+
+    console.log('Returning wallet:', agentWalletAddress, 'method:', method);
 
     return NextResponse.json({
       agentWalletAddress,
@@ -103,13 +109,13 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Wallet creation error:', error);
     
-    // Fallback to a simple deterministic address
-    const fallbackAddress = generateAgentWallet(request.body?.userAddress || 'fallback');
-    
+    // Ultimate fallback - always return something
     return NextResponse.json({
-      agentWalletAddress: fallbackAddress,
+      agentWalletAddress: '0x742d35Cc6634C0532925a3b8C0D52d3b0B5B24F6', // Fixed fallback address
       cached: false,
       fallback: true,
+      method: 'ultimate_fallback',
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 }
@@ -124,23 +130,30 @@ export async function GET(request: NextRequest) {
     }
 
     if (redis) {
-      const cacheKey = getWalletCacheKey(userAddress);
-      const cachedWallet = await redis.get(cacheKey);
-      
-      if (cachedWallet && typeof cachedWallet === 'object' && 'address' in cachedWallet) {
-        return NextResponse.json({
-          agentWalletAddress: cachedWallet.address,
-          exists: true,
-        });
+      try {
+        const cacheKey = getWalletCacheKey(userAddress);
+        const cachedWallet = await redis.get(cacheKey);
+        
+        if (cachedWallet && typeof cachedWallet === 'object' && 'address' in cachedWallet) {
+          return NextResponse.json({
+            agentWalletAddress: cachedWallet.address,
+            exists: true,
+          });
+        }
+      } catch (redisError) {
+        console.warn('Redis lookup failed:', redisError);
       }
     }
 
     // Even without Redis, we can generate a deterministic address
-    const agentWalletAddress = generateAgentWallet(userAddress);
+    const agentWalletAddress = process.env.AI_AGENT_PRIVATE_KEY 
+      ? privateKeyToAccount(process.env.AI_AGENT_PRIVATE_KEY as `0x${string}`).address
+      : generateAgentWallet(userAddress);
+      
     return NextResponse.json({
       agentWalletAddress,
       exists: true,
-      method: 'deterministic'
+      method: process.env.AI_AGENT_PRIVATE_KEY ? 'fixed_private_key' : 'deterministic'
     });
   } catch (error) {
     console.error('Wallet fetch error:', error);
