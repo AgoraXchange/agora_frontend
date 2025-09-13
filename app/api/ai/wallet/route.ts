@@ -6,7 +6,7 @@ import { baseSepolia } from 'viem/chains';
 import crypto from 'crypto';
 
 // Initialize Redis client (only if Redis URL is available)
-let redis = null;
+let redis: Redis | null = null;
 try {
   if (process.env.REDIS_URL && process.env.REDIS_TOKEN) {
     redis = new Redis({

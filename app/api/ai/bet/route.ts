@@ -58,7 +58,7 @@ const SPEND_PERMISSION_MANAGER_ABI = [
 ] as const;
 
 // Initialize Redis client (only if Redis URL is available)
-let redis = null;
+let redis: Redis | null = null;
 try {
   if (process.env.REDIS_URL && process.env.REDIS_TOKEN) {
     redis = new Redis({
@@ -165,8 +165,8 @@ async function executeAgoraBet(
         abi: SPEND_PERMISSION_MANAGER_ABI,
         functionName: 'spend',
         args: [spendPermission, amountETH],
-        chainId: baseSepolia.id,
-        gas: 1000000n, // Add explicit gas limit
+        chain: baseSepolia,
+        gas: BigInt(1000000), // Add explicit gas limit
       });
       
       console.log('SpendPermissionManager.spend transaction hash:', spendHash);
@@ -332,7 +332,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message,
       transactionHash: result.transactionHash,
-      spendPermissionTxs: result.spendPermissionTxs,
+      spendTransactionHash: result.spendTransactionHash,
       details: {
         agreementId,
         side,
